@@ -52,7 +52,6 @@ def ingest(
     paths = discover(path) if path.is_dir() else [path]
     embedder = get_embedder(settings, fake=fake_embeddings)
     with connect() as conn:
-        conn.execute("DELETE FROM documents WHERE user_id = %s", (EVAL_USER_ID,))
         report = ingest_paths(conn, paths, user_id=user_id, embedder=embedder, root=root)
     typer.echo(f"{'inserted':<12}{report.inserted}")
     typer.echo(f"{'duplicates':<12}{report.duplicates}")

@@ -128,3 +128,40 @@ def test_run_eval_two_gold_in_one_chunk(monkeypatch):
     monkeypatch.setattr(run_mod, "search", lambda conn, **kw: [hit(source_ref="d1", text="x y")])
     (r,) = run_eval(None, user_id=EVAL_USER, embedder=None, questions=[q], modes=["vector"])
     assert (r.recall_at_10, r.mrr, r.ndcg_at_10) == (1.0, 1.0, 1.0)
+
+
+def test_ingest_cli_keeps_eval_user_documents(conn, embedder, test_db_env):
+    from typer.testing import CliRunner
+
+    from recall.cli import app
+
+    root = Path(__file__).parent / "fixtures" / "eval" / "corpus"
+    ingest_paths(conn, discover(root)[:1], user_id=EVAL_USER, embedder=embedder, root=root)
+    before = conn.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s", (EVAL_USER,))
+    n = before.fetchone()["n"]
+    assert n == 1
+    docs = Path(__file__).parent / "fixtures" / "docs"
+    res = CliRunner().invoke(app, ["ingest", str(docs), "--fake-embeddings"])
+    assert res.exit_code == 0, res.output
+    after = conn.execute("SELECT count(*) AS n FROM documents WHERE user_id = %s", (EVAL_USER,))
+    assert after.fetchone()["n"] == 1
+
+
+def test_eval_cli_fake_embeddings_requires_out(test_db_env):
+    from typer.testing import CliRunner
+
+    from recall.cli import app
+
+    fx = Path(__file__).parent / "fixtures" / "eval"
+    res = CliRunner().invoke(
+        app,
+        [
+            "eval",
+            "--fake-embeddings",
+            "--corpus",
+            str(fx / "corpus"),
+            "--questions",
+            str(fx / "questions.jsonl"),
+        ],
+    )
+    assert res.exit_code == 2
