@@ -1,0 +1,3 @@
+{"id": "q1", "type": "single_fact", "question": "What is the zorblax rotation period?", "gold": [{"doc": "fx-1", "contains": "47 days"}], "answer": "47 days"}
+{"id": "q2", "type": "filter_semantic", "question": "Which remote friendly job pays well in Berlin?", "gold": [{"doc": "fx-2", "contains": "salary band"}], "answer": "The Northwind platform engineer role, 70 to 90 thousand euros."}
+{"id": "q3", "type": "multi_hop", "question": "What is the Contoso start date and the Northwind salary band?", "gold": [{"doc": "fx-3", "contains": "start date"}, {"doc": "fx-2", "contains": "salary band"}], "answer": "Contoso starts 3 March; Northwind pays 70 to 90 thousand euros."}

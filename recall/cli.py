@@ -6,6 +6,12 @@ import typer
 
 from recall.config import get_settings
 from recall.db import connect
+from recall.evaluation.run import (
+    EVAL_USER_ID,
+    load_questions,
+    run_eval,
+    write_results_md,
+)
 from recall.ingest.embed import get_embedder
 from recall.ingest.loader import discover
 from recall.ingest.pipeline import ingest_paths
@@ -79,3 +85,39 @@ def search(
     for rank, h in enumerate(hits, 1):
         snippet = " ".join(h.text.split())[:120]
         typer.echo(f"{rank:>2}  {h.score:.4f}  {h.title or '-'}  {snippet}")
+
+
+@app.command(name="eval")
+def eval_cmd(
+    corpus: Annotated[Path, typer.Option(exists=True, file_okay=False)] = Path("eval/corpus"),
+    questions: Annotated[Path, typer.Option(exists=True, dir_okay=False)] = Path(
+        "eval/questions.jsonl"
+    ),
+    out: Annotated[Path, typer.Option(help="Where to write the results table.")] = Path(
+        "eval/results.md"
+    ),
+    fake_embeddings: Annotated[
+        bool, typer.Option("--fake-embeddings", help="Use hash embeddings.")
+    ] = False,
+) -> None:
+    """Ingest the eval corpus, score every retrieval mode, and write the results table."""
+    settings = get_settings()
+    embedder = get_embedder(settings, fake=fake_embeddings)
+    paths = discover(corpus)
+    qs = load_questions(questions)
+    model = "hash (fake)" if fake_embeddings else settings.embed_model
+    with connect() as conn:
+        report = ingest_paths(conn, paths, user_id=EVAL_USER_ID, embedder=embedder, root=corpus)
+        if report.failed:
+            for f in report.failed:
+                typer.echo(f"  {Path(f.path).name}: {f.error}", err=True)
+            raise typer.Exit(1)
+        results = run_eval(
+            conn,
+            user_id=EVAL_USER_ID,
+            embedder=embedder,
+            questions=qs,
+            modes=["vector", "keyword", "hybrid"],
+        )
+    write_results_md(results, out, corpus_docs=len(paths), n_questions=len(qs), embed_model=model)
+    typer.echo(out.read_text())
