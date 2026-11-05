@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Local data (real emails/posts never get committed)
+data/private/
+eval/results/*.json
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
