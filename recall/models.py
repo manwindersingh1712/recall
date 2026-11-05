@@ -25,3 +25,20 @@ class Chunk(BaseModel):
 
     ord: int
     text: str
+
+
+class FailedFile(BaseModel):
+    """A file that could not be ingested."""
+
+    path: str
+    error: str
+
+
+class IngestReport(BaseModel):
+    """Outcome counts for one ingest run."""
+
+    inserted: int = 0
+    duplicates: int = 0
+    empty: int = 0
+    chunks: int = 0
+    failed: list[FailedFile] = []

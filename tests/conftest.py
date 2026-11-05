@@ -52,3 +52,11 @@ def user_b() -> UUID:
 @pytest.fixture
 def embedder() -> HashEmbedder:
     return HashEmbedder()
+
+
+@pytest.fixture
+def test_db_env(db_url, monkeypatch):
+    monkeypatch.setenv("RECALL_DATABASE_URL", db_url)
+    get_settings.cache_clear()
+    yield db_url
+    get_settings.cache_clear()
