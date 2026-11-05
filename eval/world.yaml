@@ -1,0 +1,895 @@
+# Ground-truth world for the synthetic Recall eval corpus (fictional companies and people).
+# Hand-authored data; scripts/generate_corpus.py and scripts/draft_questions.py read it.
+companies:
+- name: Lumenstack
+  location: Bengaluru
+  remote_from_india: true
+  remote_policy: Lumenstack is open to engineers working fully remotely from India.
+  industry: fintech
+- name: Northwind Labs
+  location: Pune
+  remote_from_india: false
+  remote_policy: Northwind Labs runs a hybrid model tied to its Pune office; remote work from India is
+    not available.
+  industry: developer tools
+- name: Quillbase
+  location: Hyderabad
+  remote_from_india: true
+  remote_policy: Quillbase supports remote-from-India hiring for most engineering teams.
+  industry: data infrastructure
+- name: Ferrous Systems India
+  location: Chennai
+  remote_from_india: false
+  remote_policy: Ferrous Systems India runs a hybrid model tied to its Chennai office; remote work from
+    India is not available.
+  industry: embedded software
+- name: Tessellate AI
+  location: Bengaluru
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Tessellate AI.
+  industry: machine learning platform
+- name: Marigold Health
+  location: Mumbai
+  remote_from_india: false
+  remote_policy: Marigold Health runs a hybrid model tied to its Mumbai office; remote work from India
+    is not available.
+  industry: healthtech
+- name: Kestrel Logistics
+  location: Gurugram
+  remote_from_india: false
+  remote_policy: Kestrel Logistics requires employees to work onsite from Gurugram and does not offer
+    remote work from India.
+  industry: supply chain
+- name: Orbitwave
+  location: Remote (Berlin HQ)
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Orbitwave.
+  industry: satellite analytics
+- name: Pinecrest Commerce
+  location: Noida
+  remote_from_india: false
+  remote_policy: Pinecrest Commerce requires employees to work onsite from Noida and does not offer remote
+    work from India.
+  industry: e-commerce
+- name: Halcyon Payments
+  location: Bengaluru
+  remote_from_india: true
+  remote_policy: Halcyon Payments is open to engineers working fully remotely from India.
+  industry: payments
+- name: Driftwood Games
+  location: Pune
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Driftwood Games.
+  industry: gaming
+- name: Basalt Security
+  location: Hyderabad
+  remote_from_india: false
+  remote_policy: Basalt Security runs a hybrid model tied to its Hyderabad office; remote work from India
+    is not available.
+  industry: cybersecurity
+- name: Cobaltline
+  location: Bengaluru
+  remote_from_india: true
+  remote_policy: Cobaltline is open to engineers working fully remotely from India.
+  industry: observability
+- name: Meridian Learning
+  location: Chennai
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Meridian Learning.
+  industry: edtech
+- name: Sablewood Energy
+  location: Ahmedabad
+  remote_from_india: false
+  remote_policy: Sablewood Energy requires employees to work onsite from Ahmedabad and does not offer
+    remote work from India.
+  industry: clean energy
+- name: Vantage Robotics
+  location: Bengaluru
+  remote_from_india: false
+  remote_policy: Vantage Robotics runs a hybrid model tied to its Bengaluru office; remote work from India
+    is not available.
+  industry: robotics
+- name: Juniper Cloud
+  location: Remote (London HQ)
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Juniper Cloud.
+  industry: cloud platform
+- name: Thistle Analytics
+  location: Kolkata
+  remote_from_india: false
+  remote_policy: Thistle Analytics runs a hybrid model tied to its Kolkata office; remote work from India
+    is not available.
+  industry: business intelligence
+- name: Rookery Travel
+  location: Goa
+  remote_from_india: true
+  remote_policy: Rookery Travel is open to engineers working fully remotely from India.
+  industry: travel tech
+- name: Ironbark Insurance
+  location: Mumbai
+  remote_from_india: false
+  remote_policy: Ironbark Insurance runs a hybrid model tied to its Mumbai office; remote work from India
+    is not available.
+  industry: insurtech
+- name: Zephyr Mobility
+  location: Bengaluru
+  remote_from_india: false
+  remote_policy: Zephyr Mobility requires employees to work onsite from Bengaluru and does not offer remote
+    work from India.
+  industry: ride sharing
+- name: Alder & Finch
+  location: Delhi
+  remote_from_india: false
+  remote_policy: Alder & Finch runs a hybrid model tied to its Delhi office; remote work from India is
+    not available.
+  industry: legal tech
+- name: Parallax Media
+  location: Mumbai
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Parallax Media.
+  industry: streaming
+- name: Granite Ledger
+  location: Bengaluru
+  remote_from_india: true
+  remote_policy: Granite Ledger supports remote-from-India hiring for most engineering teams.
+  industry: accounting software
+- name: Solstice Agritech
+  location: Indore
+  remote_from_india: false
+  remote_policy: Solstice Agritech requires employees to work onsite from Indore and does not offer remote
+    work from India.
+  industry: agritech
+- name: Wrenlight
+  location: Remote (Toronto HQ)
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Wrenlight.
+  industry: customer support software
+- name: Harbor Point Bank
+  location: Mumbai
+  remote_from_india: false
+  remote_policy: Harbor Point Bank requires employees to work onsite from Mumbai and does not offer remote
+    work from India.
+  industry: banking
+- name: Nimbus Telecom
+  location: Gurugram
+  remote_from_india: false
+  remote_policy: Nimbus Telecom runs a hybrid model tied to its Gurugram office; remote work from India
+    is not available.
+  industry: telecom
+- name: Opalite Retail
+  location: Chennai
+  remote_from_india: false
+  remote_policy: Opalite Retail requires employees to work onsite from Chennai and does not offer remote
+    work from India.
+  industry: retail tech
+- name: Quartzite Data
+  location: Pune
+  remote_from_india: true
+  remote_policy: Quartzite Data supports remote-from-India hiring for most engineering teams.
+  industry: data platform
+- name: Birchwood HR
+  location: Jaipur
+  remote_from_india: true
+  remote_policy: Birchwood HR is open to engineers working fully remotely from India.
+  industry: hr tech
+- name: Tallow Foods
+  location: Bengaluru
+  remote_from_india: false
+  remote_policy: Tallow Foods runs a hybrid model tied to its Bengaluru office; remote work from India
+    is not available.
+  industry: food delivery
+- name: Evergreen Carbon
+  location: Remote (Amsterdam HQ)
+  remote_from_india: true
+  remote_policy: Evergreen Carbon supports remote-from-India hiring for most engineering teams.
+  industry: climate software
+- name: Skyline Realty Tech
+  location: Hyderabad
+  remote_from_india: false
+  remote_policy: Skyline Realty Tech runs a hybrid model tied to its Hyderabad office; remote work from
+    India is not available.
+  industry: proptech
+- name: Cinder Audio
+  location: Bengaluru
+  remote_from_india: true
+  remote_policy: Candidates based anywhere in India can work remotely at Cinder Audio.
+  industry: audio software
+- name: Fathom Maritime
+  location: Kochi
+  remote_from_india: false
+  remote_policy: Fathom Maritime runs a hybrid model tied to its Kochi office; remote work from India
+    is not available.
+  industry: maritime software
+- name: Glasshouse Labs
+  location: Bengaluru
+  remote_from_india: true
+  remote_policy: Glasshouse Labs is open to engineers working fully remotely from India.
+  industry: design tools
+- name: Ropewalk Studios
+  location: Pune
+  remote_from_india: false
+  remote_policy: Ropewalk Studios runs a hybrid model tied to its Pune office; remote work from India
+    is not available.
+  industry: animation
+- name: Tidewater Compute
+  location: Hyderabad
+  remote_from_india: true
+  remote_policy: Tidewater Compute supports remote-from-India hiring for most engineering teams.
+  industry: hpc cloud
+- name: Umber Biotech
+  location: Bengaluru
+  remote_from_india: false
+  remote_policy: Umber Biotech runs a hybrid model tied to its Bengaluru office; remote work from India
+    is not available.
+  industry: biotech
+roles:
+- id: r01
+  company: Lumenstack
+  title: Staff Backend Engineer
+  skills:
+  - python
+  - postgres
+  - kafka
+  status: applied
+  salary: 38-52 LPA
+- id: r02
+  company: Lumenstack
+  title: Senior Platform Engineer
+  skills:
+  - kubernetes
+  - terraform
+  - go
+  status: interviewing
+  salary: 35-48 LPA
+- id: r03
+  company: Lumenstack
+  title: Machine Learning Engineer
+  skills:
+  - python
+  - pytorch
+  - mlops
+  status: rejected
+  salary: 30-42 LPA
+- id: r04
+  company: Northwind Labs
+  title: Data Engineer
+  skills:
+  - python
+  - spark
+  - airflow
+  status: saved
+  salary: 24-34 LPA
+- id: r05
+  company: Northwind Labs
+  title: Site Reliability Engineer
+  skills:
+  - kubernetes
+  - prometheus
+  - linux
+  status: offer
+  salary: 32-44 LPA
+- id: r06
+  company: Northwind Labs
+  title: Backend Engineer
+  skills:
+  - python
+  - fastapi
+  - postgres
+  status: applied
+  salary: 22-30 LPA
+- id: r07
+  company: Quillbase
+  title: Frontend Engineer
+  skills:
+  - typescript
+  - react
+  - graphql
+  status: rejected
+  salary: 20-28 LPA
+- id: r08
+  company: Quillbase
+  title: Senior Data Scientist
+  skills:
+  - python
+  - sql
+  - statistics
+  status: interviewing
+  salary: 34-46 LPA
+- id: r09
+  company: Quillbase
+  title: Security Engineer
+  skills:
+  - python
+  - aws
+  - threat modeling
+  status: saved
+  salary: 30-40 LPA
+- id: r10
+  company: Ferrous Systems India
+  title: Platform Engineer
+  skills:
+  - go
+  - kubernetes
+  - ci/cd
+  status: saved
+  salary: 28-38 LPA
+- id: r11
+  company: Ferrous Systems India
+  title: Engineering Manager
+  skills:
+  - leadership
+  - python
+  - hiring
+  status: rejected
+  salary: 50-65 LPA
+- id: r12
+  company: Ferrous Systems India
+  title: Full Stack Engineer
+  skills:
+  - typescript
+  - node
+  - postgres
+  status: applied
+  salary: 18-26 LPA
+- id: r13
+  company: Tessellate AI
+  title: Search Engineer
+  skills:
+  - elasticsearch
+  - python
+  - ranking
+  status: interviewing
+  salary: 32-45 LPA
+- id: r14
+  company: Tessellate AI
+  title: Data Analyst
+  skills:
+  - sql
+  - tableau
+  - python
+  status: saved
+  salary: 12-18 LPA
+- id: r15
+  company: Tessellate AI
+  title: DevOps Engineer
+  skills:
+  - terraform
+  - aws
+  - docker
+  status: applied
+  salary: 20-30 LPA
+- id: r16
+  company: Marigold Health
+  title: Rust Systems Engineer
+  skills:
+  - rust
+  - linux
+  - networking
+  status: rejected
+  salary: 36-50 LPA
+- id: r17
+  company: Marigold Health
+  title: Senior Backend Engineer
+  skills:
+  - java
+  - spring
+  - kafka
+  status: offer
+  salary: 34-46 LPA
+- id: r18
+  company: Marigold Health
+  title: ML Platform Engineer
+  skills:
+  - python
+  - kubernetes
+  - mlops
+  status: saved
+  salary: 34-48 LPA
+- id: r19
+  company: Kestrel Logistics
+  title: iOS Engineer
+  skills:
+  - swift
+  - swiftui
+  - ci/cd
+  status: saved
+  salary: 24-34 LPA
+- id: r20
+  company: Kestrel Logistics
+  title: Android Engineer
+  skills:
+  - kotlin
+  - jetpack
+  - ci/cd
+  status: rejected
+  salary: 22-32 LPA
+- id: r21
+  company: Kestrel Logistics
+  title: Staff Data Engineer
+  skills:
+  - spark
+  - kafka
+  - python
+  status: interviewing
+  salary: 42-58 LPA
+- id: r22
+  company: Orbitwave
+  title: Cloud Security Engineer
+  skills:
+  - aws
+  - terraform
+  - python
+  status: applied
+  salary: 32-44 LPA
+- id: r23
+  company: Orbitwave
+  title: Technical Product Manager
+  skills:
+  - sql
+  - roadmapping
+  - stakeholder management
+  status: saved
+  salary: 36-48 LPA
+- id: r24
+  company: Orbitwave
+  title: Database Reliability Engineer
+  skills:
+  - postgres
+  - linux
+  - python
+  status: interviewing
+  salary: 30-42 LPA
+- id: r25
+  company: Pinecrest Commerce
+  title: Backend Engineer, Payments
+  skills:
+  - java
+  - postgres
+  - kafka
+  status: applied
+  salary: 26-36 LPA
+- id: r26
+  company: Pinecrest Commerce
+  title: Software Engineer in Test
+  skills:
+  - python
+  - selenium
+  - ci/cd
+  status: saved
+  salary: 16-24 LPA
+- id: r27
+  company: Pinecrest Commerce
+  title: Principal Engineer
+  skills:
+  - python
+  - distributed systems
+  - mentoring
+  status: rejected
+  salary: 60-80 LPA
+- id: r28
+  company: Halcyon Payments
+  title: Computer Vision Engineer
+  skills:
+  - python
+  - pytorch
+  - opencv
+  status: saved
+  salary: 30-44 LPA
+- id: r29
+  company: Halcyon Payments
+  title: Analytics Engineer
+  skills:
+  - sql
+  - dbt
+  - python
+  status: applied
+  salary: 22-32 LPA
+- id: r30
+  company: Halcyon Payments
+  title: Infrastructure Engineer
+  skills:
+  - go
+  - terraform
+  - aws
+  status: offer
+  salary: 30-42 LPA
+- id: r31
+  company: Driftwood Games
+  title: Backend Engineer, Growth
+  skills:
+  - python
+  - postgres
+  - redis
+  status: saved
+  salary: 20-28 LPA
+- id: r32
+  company: Driftwood Games
+  title: LLM Applications Engineer
+  skills:
+  - python
+  - llm
+  - rag
+  status: interviewing
+  salary: 36-52 LPA
+- id: r33
+  company: Driftwood Games
+  title: Senior Frontend Engineer
+  skills:
+  - react
+  - typescript
+  - performance
+  status: saved
+  salary: 28-40 LPA
+- id: r34
+  company: Basalt Security
+  title: Embedded Software Engineer
+  skills:
+  - c++
+  - rtos
+  - linux
+  status: rejected
+  salary: 20-30 LPA
+- id: r35
+  company: Basalt Security
+  title: Developer Advocate
+  skills:
+  - python
+  - writing
+  - public speaking
+  status: saved
+  salary: 22-32 LPA
+- id: r36
+  company: Basalt Security
+  title: Senior SRE
+  skills:
+  - kubernetes
+  - go
+  - prometheus
+  status: applied
+  salary: 36-50 LPA
+- id: r37
+  company: Cobaltline
+  title: Data Platform Engineer
+  skills:
+  - spark
+  - airflow
+  - aws
+  status: saved
+  salary: 30-42 LPA
+- id: r38
+  company: Meridian Learning
+  title: QA Lead
+  skills:
+  - python
+  - selenium
+  - leadership
+  status: rejected
+  salary: 24-34 LPA
+- id: r39
+  company: Sablewood Energy
+  title: Backend Engineer, Core
+  skills:
+  - go
+  - postgres
+  - grpc
+  status: interviewing
+  salary: 28-40 LPA
+- id: r40
+  company: Vantage Robotics
+  title: Mobile Platform Engineer
+  skills:
+  - kotlin
+  - swift
+  - ci/cd
+  status: saved
+  salary: 30-42 LPA
+- id: r41
+  company: Juniper Cloud
+  title: Staff Machine Learning Engineer
+  skills:
+  - python
+  - pytorch
+  - llm
+  status: applied
+  salary: 50-70 LPA
+- id: r42
+  company: Thistle Analytics
+  title: Solutions Architect
+  skills:
+  - aws
+  - terraform
+  - stakeholder management
+  status: offer
+  salary: 38-52 LPA
+- id: r43
+  company: Rookery Travel
+  title: Graphics Engineer
+  skills:
+  - c++
+  - vulkan
+  - linux
+  status: saved
+  salary: 28-40 LPA
+- id: r44
+  company: Ironbark Insurance
+  title: Backend Engineer, APIs
+  skills:
+  - node
+  - graphql
+  - postgres
+  status: saved
+  salary: 22-30 LPA
+- id: r45
+  company: Zephyr Mobility
+  title: Data Scientist
+  skills:
+  - python
+  - sql
+  - statistics
+  status: rejected
+  salary: 22-32 LPA
+- id: r46
+  company: Alder & Finch
+  title: Senior DevOps Engineer
+  skills:
+  - kubernetes
+  - terraform
+  - aws
+  status: saved
+  salary: 30-42 LPA
+- id: r47
+  company: Parallax Media
+  title: Staff Frontend Engineer
+  skills:
+  - react
+  - typescript
+  - graphql
+  status: interviewing
+  salary: 40-55 LPA
+- id: r48
+  company: Granite Ledger
+  title: Reliability Engineer
+  skills:
+  - linux
+  - python
+  - prometheus
+  status: applied
+  salary: 22-32 LPA
+- id: r49
+  company: Solstice Agritech
+  title: Senior Python Developer
+  skills:
+  - python
+  - fastapi
+  - redis
+  status: saved
+  salary: 26-36 LPA
+- id: r50
+  company: Wrenlight
+  title: Search Relevance Engineer
+  skills:
+  - python
+  - ranking
+  - elasticsearch
+  status: saved
+  salary: 32-44 LPA
+- id: r51
+  company: Harbor Point Bank
+  title: Product Engineer
+  skills:
+  - typescript
+  - react
+  - postgres
+  status: applied
+  salary: 24-34 LPA
+- id: r52
+  company: Nimbus Telecom
+  title: Platform Security Engineer
+  skills:
+  - go
+  - kubernetes
+  - threat modeling
+  status: saved
+  salary: 34-46 LPA
+- id: r53
+  company: Opalite Retail
+  title: Senior Data Engineer
+  skills:
+  - python
+  - spark
+  - kafka
+  status: rejected
+  salary: 30-42 LPA
+- id: r54
+  company: Quartzite Data
+  title: Backend Engineer, Data
+  skills:
+  - python
+  - postgres
+  - airflow
+  status: saved
+  salary: 24-34 LPA
+- id: r55
+  company: Birchwood HR
+  title: Engineering Lead, Platform
+  skills:
+  - go
+  - kubernetes
+  - leadership
+  status: saved
+  salary: 48-62 LPA
+- id: r56
+  company: Tallow Foods
+  title: Senior Machine Learning Engineer
+  skills:
+  - python
+  - mlops
+  - pytorch
+  status: interviewing
+  salary: 40-56 LPA
+- id: r57
+  company: Evergreen Carbon
+  title: Senior Full Stack Engineer
+  skills:
+  - typescript
+  - node
+  - aws
+  status: saved
+  salary: 28-40 LPA
+- id: r58
+  company: Skyline Realty Tech
+  title: Infrastructure Security Engineer
+  skills:
+  - linux
+  - terraform
+  - aws
+  status: applied
+  salary: 32-44 LPA
+- id: r59
+  company: Cinder Audio
+  title: Backend Engineer, Platform
+  skills:
+  - python
+  - kafka
+  - postgres
+  status: saved
+  salary: 26-36 LPA
+- id: r60
+  company: Fathom Maritime
+  title: Staff Site Reliability Engineer
+  skills:
+  - kubernetes
+  - go
+  - linux
+  status: rejected
+  salary: 45-60 LPA
+people:
+- name: Priya Nair
+  company: Lumenstack
+  role: recruiter
+- name: Arjun Mehta
+  company: Lumenstack
+  role: hiring manager
+- name: Kavya Iyer
+  company: Northwind Labs
+  role: recruiter
+- name: Rohan Desai
+  company: Northwind Labs
+  role: engineer
+- name: Sneha Kulkarni
+  company: Quillbase
+  role: recruiter
+- name: Vikram Rao
+  company: Quillbase
+  role: hiring manager
+- name: Ananya Bose
+  company: Ferrous Systems India
+  role: recruiter
+- name: Dev Malhotra
+  company: Tessellate AI
+  role: recruiter
+- name: Ishita Verma
+  company: Tessellate AI
+  role: hiring manager
+- name: Karan Bhatia
+  company: Tessellate AI
+  role: engineer
+- name: Meera Pillai
+  company: Marigold Health
+  role: recruiter
+- name: Nikhil Joshi
+  company: Marigold Health
+  role: engineer
+- name: Tanvi Shah
+  company: Kestrel Logistics
+  role: recruiter
+- name: Aditya Menon
+  company: Kestrel Logistics
+  role: hiring manager
+- name: Leena Fischer
+  company: Orbitwave
+  role: recruiter
+- name: Omar Haddad
+  company: Orbitwave
+  role: engineer
+- name: Sanjay Krishnan
+  company: Pinecrest Commerce
+  role: recruiter
+- name: Divya Reddy
+  company: Pinecrest Commerce
+  role: engineer
+- name: Rhea Kapoor
+  company: Halcyon Payments
+  role: recruiter
+- name: Yash Agarwal
+  company: Halcyon Payments
+  role: hiring manager
+- name: Pooja Banerjee
+  company: Driftwood Games
+  role: recruiter
+- name: Harsh Vyas
+  company: Driftwood Games
+  role: engineer
+- name: Neha Sethi
+  company: Basalt Security
+  role: recruiter
+- name: Tomas Lindqvist
+  company: Basalt Security
+  role: hiring manager
+- name: Farhan Qureshi
+  company: Cobaltline
+  role: engineer
+skills:
+- airflow
+- aws
+- c++
+- ci/cd
+- dbt
+- distributed systems
+- docker
+- elasticsearch
+- fastapi
+- go
+- graphql
+- grpc
+- hiring
+- java
+- jetpack
+- kafka
+- kotlin
+- kubernetes
+- leadership
+- linux
+- llm
+- mentoring
+- mlops
+- networking
+- node
+- opencv
+- performance
+- postgres
+- prometheus
+- public speaking
+- python
+- pytorch
+- rag
+- ranking
+- react
+- redis
+- roadmapping
+- rtos
+- rust
+- selenium
+- spark
+- spring
+- sql
+- stakeholder management
+- statistics
+- swift
+- swiftui
+- tableau
+- terraform
+- threat modeling
+- typescript
+- vulkan
+- writing

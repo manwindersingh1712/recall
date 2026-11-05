@@ -19,6 +19,8 @@ dependencies = [
     "beautifulsoup4",
     "python-frontmatter",
     "fastembed",
+    "anthropic>=2.6.0",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
