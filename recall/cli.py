@@ -118,8 +118,8 @@ def eval_cmd(
                 typer.echo(f"  {Path(f.path).name}: {f.error}", err=True)
             raise typer.Exit(1)
         n_docs = conn.execute(
-            "SELECT count(*) FROM documents WHERE user_id = %s", (EVAL_USER_ID,)
-        ).fetchone()[0]
+            "SELECT count(*) AS n FROM documents WHERE user_id = %s", (EVAL_USER_ID,)
+        ).fetchone()["n"]
         results = run_eval(
             conn,
             user_id=EVAL_USER_ID,
