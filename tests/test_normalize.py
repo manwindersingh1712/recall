@@ -40,3 +40,19 @@ def test_hash_is_sha256_hex():
 
 def test_less_than_in_plain_text_is_not_html():
     assert normalize("salary < 50k, team > 5") == "salary < 50k, team > 5"
+
+
+def test_html_block_boundaries_ignore_source_whitespace():
+    assert normalize("<p>a</p>\n<p>b</p>") == normalize("<p>a</p><p>b</p>") == "a\nb"
+    assert normalize("<div>x</div>  <div>y</div>") == "x\ny"
+    assert normalize("<h2>About</h2>\n  <p>one</p>\n  <p>two</p>\n") == "About\none\ntwo"
+
+
+def test_signature_after_html_nbsp_is_cut():
+    assert normalize("<p>x</p>--&nbsp;<br>sig") == "x"
+    assert normalize("x\n  -- \nsig") == "x"
+
+
+def test_nbsp_is_a_space():
+    assert normalize("a\xa0 b") == "a b"
+    assert content_hash(normalize("<p>a&nbsp;b</p>")) == content_hash(normalize("a b"))

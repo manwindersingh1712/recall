@@ -3,7 +3,7 @@
 import hashlib
 import re
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 _HTML_TAG = re.compile(
     r"<(html|body|p|div|br|li|ul|ol|h[1-6]|span|table|tr|td|b|i|a|strong|em)\b",
@@ -18,23 +18,29 @@ def _html_to_text(raw: str) -> str:
     soup = BeautifulSoup(raw, "html.parser")
     for tag in soup(["script", "style"]):
         tag.decompose()
+    # Source whitespace (including newlines and NBSP) is never significant in HTML.
+    for node in soup.find_all(string=True):
+        if type(node) is NavigableString:
+            node.replace_with(re.sub(r"\s+", " ", node))
     for tag in soup.find_all(_BLOCKS):
         tag.insert_before("\n")
         tag.insert_after("\n")
-    # Block boundaries are single line breaks in the result.
-    return re.sub(r"\n+", "\n", soup.get_text())
+    # Every block boundary is exactly one line break: drop blank lines.
+    lines = (line.strip() for line in soup.get_text().splitlines())
+    return "\n".join(line for line in lines if line)
 
 
 def normalize(raw: str) -> str:
     """Return plain text with markup, quoted replies, signatures and extra whitespace removed."""
     text = _html_to_text(raw) if _HTML_TAG.search(raw) else raw
     lines: list[str] = []
-    for line in text.splitlines():
+    for line in text.replace("\xa0", " ").splitlines():
+        line = re.sub(r"[ \t]+", " ", line).strip()
         if _REPLY_HEADER.match(line) or _SIGNATURE.match(line):
             break
         if line.startswith(">"):
             continue
-        lines.append(re.sub(r"[ \t]+", " ", line).strip())
+        lines.append(line)
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
