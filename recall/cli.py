@@ -65,7 +65,7 @@ def search(
         UUID | None, typer.Option("--user", help="User id (default: dev user).")
     ] = None,
     mode: Annotated[Mode, typer.Option("--mode", help="vector, keyword or hybrid.")] = "hybrid",
-    k: Annotated[int, typer.Option("-k", help="Number of results.")] = 10,
+    k: Annotated[int, typer.Option("-k", min=1, help="Number of results.")] = 10,
     fake_embeddings: Annotated[
         bool, typer.Option("--fake-embeddings", help="Use hash embeddings.")
     ] = False,

@@ -11,11 +11,15 @@ from recall.models import Mode, SearchHit
 _HIT_COLUMNS = "c.id AS chunk_id, c.document_id, d.title, d.source_ref, c.text"
 
 _VECTOR_SQL = f"""
-SELECT {_HIT_COLUMNS}, 1 - (c.embedding <=> %(emb)s) AS score
-FROM chunks c JOIN documents d ON d.id = c.document_id
-WHERE c.user_id = %(user)s AND c.superseded_by IS NULL
-ORDER BY c.embedding <=> %(emb)s
-LIMIT %(k)s
+SELECT * FROM (
+  SELECT {_HIT_COLUMNS}, 1 - (c.embedding <=> %(emb)s) AS score,
+         c.embedding <=> %(emb)s AS dist
+  FROM chunks c JOIN documents d ON d.id = c.document_id
+  WHERE c.user_id = %(user)s AND c.superseded_by IS NULL
+  ORDER BY c.embedding <=> %(emb)s
+  LIMIT %(k)s
+) t
+ORDER BY dist, chunk_id
 """
 
 _KEYWORD_SQL = f"""
@@ -34,7 +38,7 @@ WITH vec AS (
   FROM (SELECT id, embedding <=> %(emb)s AS dist
         FROM chunks
         WHERE user_id = %(user)s AND superseded_by IS NULL
-        ORDER BY embedding <=> %(emb)s
+        ORDER BY embedding <=> %(emb)s, id
         LIMIT %(cand)s) t
 ),
 kw AS (
@@ -43,7 +47,7 @@ kw AS (
         FROM chunks
         WHERE user_id = %(user)s AND superseded_by IS NULL
           AND tsv @@ websearch_to_tsquery('english', %(query)s)
-        ORDER BY score DESC
+        ORDER BY score DESC, id
         LIMIT %(cand)s) t
 ),
 fused AS (
@@ -67,7 +71,7 @@ WITH kw AS (
         FROM chunks
         WHERE user_id = %(user)s AND superseded_by IS NULL
           AND tsv @@ websearch_to_tsquery('english', %(query)s)
-        ORDER BY score DESC
+        ORDER BY score DESC, id
         LIMIT %(cand)s) t
 )
 SELECT {_HIT_COLUMNS}, (1.0 / (%(rrf_k)s + kw.r))::float8 AS score
@@ -89,7 +93,7 @@ def _run(conn: Connection, sql: str, params: dict) -> list[SearchHit]:
         conn.execute("SET LOCAL hnsw.iterative_scan = relaxed_order")
         conn.execute("SET LOCAL hnsw.ef_search = 100")
         rows = conn.execute(sql, params).fetchall()
-    return [SearchHit(**r) for r in rows]
+    return [SearchHit(**{f: r[f] for f in SearchHit.model_fields}) for r in rows]
 
 
 def vector_search(
@@ -139,6 +143,8 @@ def search(
     k: int = 10,
 ) -> list[SearchHit]:
     """Dispatch to the requested retrieval mode and return at most k hits."""
+    if k < 1:
+        raise ValueError("k must be >= 1")
     if mode == "keyword":
         return keyword_search(conn, user_id=user_id, query=query, k=k)
     emb = embedder.embed_query(query)

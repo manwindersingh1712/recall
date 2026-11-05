@@ -98,3 +98,15 @@ def test_hybrid_zero_vector_uses_keyword_arm(conn, seeded, user_a):
     hits = hybrid_search(conn, user_id=user_a, query="pgvector", query_embedding=[0.0] * 384)
     assert len(hits) == 1 and "Littlebird" in hits[0].text
     assert hits[0].score == pytest.approx(1 / 61)
+
+
+def test_vector_scores_non_increasing(conn, seeded, user_a, embedder):
+    hits = search(conn, user_id=user_a, query="role", embedder=embedder, mode="vector", k=4)
+    scores = [h.score for h in hits]
+    assert len(scores) == 4 and scores == sorted(scores, reverse=True)
+
+
+@pytest.mark.parametrize("k", [0, -1])
+def test_k_must_be_positive(conn, seeded, user_a, embedder, k):
+    with pytest.raises(ValueError):
+        search(conn, user_id=user_a, query="role", embedder=embedder, k=k)
