@@ -1,5 +1,6 @@
 """Discover and load documents (with optional YAML front matter) from disk."""
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -24,11 +25,12 @@ def discover(root: Path) -> list[Path]:
 
 def load_file(path: Path, root: Path | None = None) -> RawDocument:
     """Load one file into a RawDocument; raise ValueError naming the file if it is invalid."""
-    text = path.read_bytes().decode("utf-8", errors="replace")
+    text = path.read_bytes().decode("utf-8-sig", errors="replace")
     try:
         post = frontmatter.loads(text)
         fields: dict[str, Any] = {k: post.metadata[k] for k in _KNOWN_KEYS if k in post.metadata}
-        metadata = {k: v for k, v in post.metadata.items() if k not in _KNOWN_KEYS}
+        extra = {k: v for k, v in post.metadata.items() if k not in _KNOWN_KEYS}
+        metadata = json.loads(json.dumps(extra, default=str))
         fields.setdefault("title", path.stem)
         fields.setdefault(
             "source_ref", str(path.relative_to(root)) if root is not None else path.name

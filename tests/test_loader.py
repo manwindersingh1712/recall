@@ -51,3 +51,15 @@ def test_discover_filters_and_sorts(tmp_path):
     for n in ["b.md", "a.txt", ".hidden.md", "c.pdf"]:
         (tmp_path / n).write_text("x")
     assert [p.name for p in discover(tmp_path)] == ["a.txt", "b.md"]
+
+
+def test_metadata_is_json_safe(tmp_path):
+    p = tmp_path / "d.md"
+    p.write_text("---\ndate: 2026-11-02\n---\nhi")
+    assert load_file(p).metadata == {"date": "2026-11-02"}
+
+
+def test_bom_front_matter(tmp_path):
+    p = tmp_path / "b.md"
+    p.write_bytes(b"\xef\xbb\xbf---\ntitle: With BOM\n---\nhi")
+    assert load_file(p).title == "With BOM"
