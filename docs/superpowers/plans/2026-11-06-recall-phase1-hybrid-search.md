@@ -43,7 +43,7 @@
 
 - `make up` starts Postgres; `make test` runs the fast suite (no model download); `make test-all` adds `@pytest.mark.slow` tests that use the real embedding model.
 - Each task ends with a **Try it** line: a command you can run by hand to see the feature working.
-- Push after each task (`git push`) once the GitHub remote exists (see Task 1, Step 7).
+- Push after each task's commit (`git push`); the remote is https://github.com/manwindersingh1712/recall (public).
 
 ## File Structure
 
@@ -140,12 +140,13 @@ Run: `make test` → Expected: FAIL/ERROR (`recall.db` / fixture `conn` not foun
 
 Run: `make test` → Expected: 2 passed.
 
-- [ ] **Step 7: Commit and create the remote**
+- [ ] **Step 7: Commit and push**
 
 ```bash
 git add -A && git commit -m "chore: scaffold recall with uv, docker postgres+pgvector and test fixtures"
+git push
 ```
-Remote (needs the user's go-ahead, since it publishes code): `gh repo create recall --private --source . --push` (switch to `--public` when Phase 2 results are in).
+Remote already exists: `origin` = https://github.com/manwindersingh1712/recall (public). Push after every task's commit.
 
 **Try it:** `docker compose exec postgres psql -U recall -c '\l'` lists `recall` and `recall_test`.
 
