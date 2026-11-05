@@ -5,6 +5,7 @@ import pytest
 
 from recall.config import get_settings
 from recall.db import connect
+from recall.migrate import apply_migrations
 
 
 @pytest.fixture(scope="session")
@@ -13,8 +14,16 @@ def db_url() -> str:
     try:
         with psycopg.connect(url, connect_timeout=3):
             pass
-    except psycopg.OperationalError:
-        pytest.exit("Postgres not reachable on 5433 — run `make up`", returncode=2)
+    except psycopg.OperationalError as e:
+        if "does not exist" in str(e):
+            msg = "recall_test database missing — run `make down -v && make up` to re-run initdb"
+        else:
+            msg = "Postgres not reachable on 5433 — run `make up`"
+        pytest.exit(msg, returncode=2)
+    with connect(url) as c:
+        c.execute("DROP SCHEMA public CASCADE")
+        c.execute("CREATE SCHEMA public")
+        apply_migrations(c)
     return url
 
 

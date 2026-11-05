@@ -1,4 +1,4 @@
-.PHONY: up down test test-all lint
+.PHONY: up down test test-all lint migrate
 
 up:
 	docker compose up -d --wait
@@ -14,3 +14,6 @@ test-all:
 
 lint:
 	uv run ruff check . && uv run ruff format --check .
+
+migrate:
+	uv run recall migrate
