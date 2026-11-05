@@ -37,6 +37,9 @@ packages = ["recall"]
 [tool.pytest.ini_options]
 markers = ["slow: uses the real embedding model"]
 addopts = "-ra"
+filterwarnings = [
+    "ignore:Using .httpx. with .starlette.testclient. is deprecated",
+]
 
 [tool.ruff]
 line-length = 100

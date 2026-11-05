@@ -46,3 +46,12 @@ def test_search_no_data_returns_empty(client):
 )
 def test_search_validation(client, user_a, body):
     assert client.post("/search", json={"user_id": str(user_a), **body}).status_code == 422
+
+
+def test_health_db_down(client, monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(client.app.state.pool, "connection", boom)
+    r = client.get("/health")
+    assert r.status_code == 503 and r.json() == {"status": "error", "db": False}

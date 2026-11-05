@@ -48,7 +48,7 @@ def create_app(settings: Settings | None = None, embedder: Embedder | None = Non
     @app.get("/health")
     def health(request: Request, response: Response) -> dict[str, object]:
         try:
-            with request.app.state.pool.connection() as conn:
+            with request.app.state.pool.connection(timeout=2) as conn:
                 conn.execute("SELECT 1")
         except Exception:
             log.exception("health check failed")
