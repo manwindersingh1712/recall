@@ -341,16 +341,39 @@ def test_rejected_phrase_gets_one_more_attempt(tmp_path):
     assert "<rejected>" in client.calls[1]["messages"][0]["content"]
 
 
-def test_phrase_matching_only_after_whitespace_collapse_is_rejected(tmp_path):
+def test_phrase_must_match_indexed_text_not_raw_body(tmp_path):
     _write_corpus_doc(tmp_path, "job_post", "jp-a", "Pay is 30-40\nLPA for this role.")
     _write_corpus_doc(tmp_path, "job_post", "jp-b", "Pay is  50-60  LPA, double spaced.")
     corpus = draft_questions._Corpus(tmp_path)
-    for ref, phrase, must in (
-        ("jp-a", "Pay is 30-40 LPA for this role.", "30-40"),
-        ("jp-b", "Pay is 50-60 LPA, double spaced.", "50-60"),
-    ):
-        client = ScriptedClient(*[_phrase_reply(phrase)] * 2)
-        assert draft_questions._phrase(client, _need(corpus, ref, must), corpus) is None
+    # newline survives normalize, so the one-line phrase is not in any chunk
+    client = ScriptedClient(*[_phrase_reply("Pay is 30-40 LPA for this role.")] * 2)
+    assert draft_questions._phrase(client, _need(corpus, "jp-a", "30-40"), corpus) is None
+    # normalize collapses runs of spaces, so this phrase IS what the index holds
+    ok = _phrase_reply("Pay is 50-60 LPA, double spaced.")
+    got = draft_questions._phrase(ScriptedClient(ok), _need(corpus, "jp-b", "50-60"), corpus)
+    assert got == "Pay is 50-60 LPA, double spaced."
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "Intro line.\n> Pay is 30-40 LPA for this role.\nMore text.",
+        "Intro line.\n--\nPay is 30-40 LPA for this role.",
+    ],
+)
+def test_phrase_dropped_by_normalize_is_rejected(tmp_path, body):
+    _write_corpus_doc(tmp_path, "email", "em-a", body)
+    corpus = draft_questions._Corpus(tmp_path)
+    client = ScriptedClient(*[_phrase_reply("Pay is 30-40 LPA for this role.")] * 2)
+    assert draft_questions._phrase(client, _need(corpus, "em-a", "30-40"), corpus) is None
+
+
+def test_phrase_in_other_docs_quoted_text_does_not_count_as_duplicate(tmp_path):
+    _write_corpus_doc(tmp_path, "email", "em-a", "Pay is 30-40 LPA for this role.")
+    _write_corpus_doc(tmp_path, "email", "em-b", "Hello.\n> Pay is 30-40 LPA for this role.")
+    corpus = draft_questions._Corpus(tmp_path)
+    reply = _phrase_reply("Pay is 30-40 LPA for this role.")
+    assert draft_questions._phrase(ScriptedClient(reply), _need(corpus, "em-a", "30-40"), corpus)
 
 
 def test_phrase_unique_and_raw_matching_accepted(tmp_path):
@@ -446,3 +469,14 @@ def test_render_requires_person_names_case_insensitively():
     assert render(spec, ScriptedClient(body)) == body
     with pytest.raises(ValueError, match="missing required facts"):
         render(spec, ScriptedClient("no facts here", "still none"))
+
+
+@pytest.mark.parametrize("junk", ["> ", "--\n"])
+def test_render_requires_facts_in_normalized_body(junk):
+    spec = _spec("job_post")
+    facts = spec.facts
+    hidden = f"{junk}Pay: {facts['salary']}. {facts['remote_policy']}"
+    good = f"Pay: {facts['salary']}. {facts['remote_policy']}"
+    client = ScriptedClient(f"Intro.\n{hidden}", good)
+    assert render(spec, client) == good
+    assert len(client.calls) == 2

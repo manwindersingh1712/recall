@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import psycopg
+import psycopg.conninfo
 import pytest
 
 from recall.config import get_settings
@@ -21,6 +22,9 @@ def db_url() -> str:
         else:
             msg = "Postgres not reachable on 5433 — run `make up`"
         pytest.exit(msg, returncode=2)
+    dbname = psycopg.conninfo.conninfo_to_dict(url).get("dbname", "")
+    if not dbname.endswith("_test"):
+        pytest.exit(f"refusing to DROP SCHEMA on non-test database {dbname!r}", returncode=2)
     with connect(url) as c:
         c.execute("DROP SCHEMA public CASCADE")
         c.execute("CREATE SCHEMA public")

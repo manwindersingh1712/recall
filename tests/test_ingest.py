@@ -7,8 +7,8 @@ from recall.ingest.embed import HashEmbedder
 from recall.ingest.loader import discover
 from recall.ingest.pipeline import ingest_paths
 
-FIX = Path("tests/fixtures/docs")
-BAD = Path("tests/fixtures/bad_docs")
+FIX = Path(__file__).parent / "fixtures" / "docs"
+BAD = Path(__file__).parent / "fixtures" / "bad_docs"
 
 
 def test_ingest_fixture_folder(conn, user_a, embedder):

@@ -10,6 +10,7 @@ from recall.evaluation.run import (
     EVAL_USER_ID,
     load_questions,
     run_eval,
+    unreachable_gold,
     write_results_md,
 )
 from recall.ingest.embed import get_embedder
@@ -107,7 +108,11 @@ def eval_cmd(
         typer.echo("--fake-embeddings requires an explicit --out (not eval/results.md)", err=True)
         raise typer.Exit(2)
     paths = discover(corpus)
-    qs = load_questions(questions)
+    try:
+        qs = load_questions(questions)
+    except ValueError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from e
     model = "hash (fake)" if fake_embeddings else settings.embed_model
     with connect() as conn:
         conn.execute("DELETE FROM documents WHERE user_id = %s", (EVAL_USER_ID,))
@@ -119,6 +124,13 @@ def eval_cmd(
         n_docs = conn.execute(
             "SELECT count(*) AS n FROM documents WHERE user_id = %s", (EVAL_USER_ID,)
         ).fetchone()["n"]
+        total_gold = sum(len(q.gold) for q in qs)
+        missing = unreachable_gold(conn, user_id=EVAL_USER_ID, questions=qs)
+        if missing:
+            typer.echo(f"{len(missing)}/{total_gold} gold items are unreachable:", err=True)
+            for qid, g in missing:
+                typer.echo(f"  {qid}: {g.doc}: {g.contains!r}", err=True)
+            raise typer.Exit(1)
         results = run_eval(
             conn,
             user_id=EVAL_USER_ID,
@@ -126,5 +138,12 @@ def eval_cmd(
             questions=qs,
             modes=["vector", "keyword", "hybrid"],
         )
-    write_results_md(results, out, corpus_docs=n_docs, n_questions=len(qs), embed_model=model)
+    write_results_md(
+        results,
+        out,
+        corpus_docs=n_docs,
+        n_questions=len(qs),
+        embed_model=model,
+        gold_reachable=(total_gold, total_gold),
+    )
     typer.echo(out.read_text())

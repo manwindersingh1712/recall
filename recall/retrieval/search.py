@@ -38,7 +38,7 @@ WITH vec AS (
   FROM (SELECT id, embedding <=> %(emb)s AS dist
         FROM chunks
         WHERE user_id = %(user)s AND superseded_by IS NULL
-        ORDER BY embedding <=> %(emb)s, id
+        ORDER BY embedding <=> %(emb)s
         LIMIT %(cand)s) t
 ),
 kw AS (

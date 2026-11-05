@@ -29,8 +29,8 @@ _BLANK_ROWS = ["Hybrid + re-rank", "Hybrid + re-rank + graph", "Full (+ MMR, dec
 
 
 class Gold(BaseModel):
-    doc: str
-    contains: str
+    doc: str = Field(min_length=1)
+    contains: str = Field(min_length=1)
 
 
 class Question(BaseModel):
@@ -60,6 +60,8 @@ def load_questions(path: Path) -> list[Question]:
             questions.append(Question.model_validate(json.loads(line)))
         except (json.JSONDecodeError, ValidationError) as e:
             raise ValueError(f"{path}: line {n}: {e}") from e
+    if not questions:
+        raise ValueError(f"{path}: no questions")
     return questions
 
 
@@ -67,11 +69,36 @@ def _key(g: Gold) -> str:
     return f"{g.doc}::{g.contains}"
 
 
-def _body(h: SearchHit) -> str:
+def chunk_body(text: str, title: str | None) -> str:
     """Chunk text without the contextual "title — company" prefix paragraph."""
-    if h.title and h.text.startswith(h.title) and "\n\n" in h.text:
-        return h.text.split("\n\n", 1)[1]
-    return h.text
+    if title and text.startswith(title) and "\n\n" in text:
+        return text.split("\n\n", 1)[1]
+    return text
+
+
+def _body(h: SearchHit) -> str:
+    return chunk_body(h.text, h.title)
+
+
+def unreachable_gold(
+    conn: psycopg.Connection, *, user_id: UUID, questions: list[Question]
+) -> list[tuple[str, Gold]]:
+    """(question id, gold) pairs that no live indexed chunk of the gold doc can satisfy."""
+    rows = conn.execute(
+        "SELECT d.source_ref, d.title, c.text FROM chunks c "
+        "JOIN documents d ON d.id = c.document_id "
+        "WHERE c.user_id = %s AND c.superseded_by IS NULL",
+        (user_id,),
+    ).fetchall()
+    bodies: dict[str, list[str]] = defaultdict(list)
+    for r in rows:
+        bodies[r["source_ref"]].append(chunk_body(r["text"], r["title"]).lower())
+    return [
+        (q.id, g)
+        for q in questions
+        for g in q.gold
+        if not any(g.contains.lower() in b for b in bodies.get(g.doc, []))
+    ]
 
 
 def label_hits(hits: list[SearchHit], gold: list[Gold]) -> list[set[str]]:
@@ -98,19 +125,16 @@ def run_eval(
     modes: list[Mode],
     k: int = 10,
 ) -> list[ModeResult]:
+    if not questions:
+        raise ValueError("run_eval needs at least one question")
     results = []
     for mode in modes:
         scores: dict[str, list[tuple[float, float, float]]] = defaultdict(list)
         latencies: list[float] = []
-        if questions:  # untimed warm-up so connection/plan caches don't skew p95
-            search(
-                conn,
-                user_id=user_id,
-                query=questions[0].question,
-                embedder=embedder,
-                mode=mode,
-                k=k,
-            )
+        # untimed warm-up so connection/plan caches don't skew p95
+        search(
+            conn, user_id=user_id, query=questions[0].question, embedder=embedder, mode=mode, k=k
+        )
         for q in questions:
             t0 = time.perf_counter()
             hits = search(
@@ -151,16 +175,27 @@ def run_eval(
 
 
 def render_results_md(
-    results: list[ModeResult], *, corpus_docs: int, n_questions: int, embed_model: str
+    results: list[ModeResult],
+    *,
+    corpus_docs: int,
+    n_questions: int,
+    embed_model: str,
+    gold_reachable: tuple[int, int] | None = None,
 ) -> str:
     by_mode = {r.mode: r for r in results}
     lines = [
         "# Recall eval results\n",
         (
             f"Date: {date.today().isoformat()} | Corpus: {corpus_docs} docs | "
-            f"Questions: {n_questions} | Embedding model: {embed_model}\n"
+            f"Questions: {n_questions} | Embedding model: {embed_model}"
+            + (
+                f" | Gold reachable: {gold_reachable[0]}/{gold_reachable[1]}"
+                if gold_reachable
+                else ""
+            )
+            + "\n"
         ),
-        "| Configuration | Recall@10 | MRR | p95 latency (ms) | Cost per query |",
+        "| Configuration | Recall@10 | MRR@10 | p95 latency (ms) | Cost per query |",
         "| --- | --- | --- | --- | --- |",
     ]
     for mode, label in _MODE_LABELS.items():
@@ -187,7 +222,7 @@ def render_results_md(
         "",
         "## By question type",
         "",
-        "| Configuration | Type | n | Recall@10 | MRR |",
+        "| Configuration | Type | n | Recall@10 | MRR@10 |",
         "| --- | --- | --- | --- | --- |",
     ]
     for r in results:
@@ -206,10 +241,15 @@ def write_results_md(
     corpus_docs: int,
     n_questions: int,
     embed_model: str,
+    gold_reachable: tuple[int, int] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         render_results_md(
-            results, corpus_docs=corpus_docs, n_questions=n_questions, embed_model=embed_model
+            results,
+            corpus_docs=corpus_docs,
+            n_questions=n_questions,
+            embed_model=embed_model,
+            gold_reachable=gold_reachable,
         )
     )

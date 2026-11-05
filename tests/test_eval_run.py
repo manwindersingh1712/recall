@@ -165,3 +165,96 @@ def test_eval_cli_fake_embeddings_requires_out(test_db_env):
         ],
     )
     assert res.exit_code == 2
+
+
+FX = Path(__file__).parent / "fixtures" / "eval"
+
+
+def _eval_args(out, questions=FX / "questions.jsonl"):
+    return [
+        "eval",
+        "--fake-embeddings",
+        "--corpus",
+        str(FX / "corpus"),
+        "--questions",
+        str(questions),
+        "--out",
+        str(out),
+    ]
+
+
+def test_eval_cli_success_path(conn, embedder, test_db_env, tmp_path):
+    from typer.testing import CliRunner
+
+    from recall.cli import app
+
+    stray = tmp_path / "stray"
+    stray.mkdir()
+    (stray / "stray.md").write_text("A stray document that must be wiped.")
+    ingest_paths(conn, discover(stray), user_id=EVAL_USER, embedder=embedder, root=stray)
+    out = tmp_path / "results.md"
+    res = CliRunner().invoke(app, _eval_args(out))
+    assert res.exit_code == 0, res.output
+    text = out.read_text()
+    assert "Corpus: 3 docs" in text
+    assert "Gold reachable: 4/4" in text
+    assert "MRR@10" in text
+    for label in ("Vector only", "Keyword only", "Hybrid (RRF)"):
+        row = next(ln for ln in text.splitlines() if ln.startswith(f"| {label} |"))
+        assert all(cell.strip() for cell in row.strip("|").split("|"))
+    n = conn.execute(
+        "SELECT count(*) AS n FROM documents WHERE user_id = %s AND source_ref = %s",
+        (EVAL_USER, "stray"),
+    ).fetchone()["n"]
+    assert n == 0
+
+
+def test_eval_cli_unreachable_gold_exits_nonzero_without_output(test_db_env, tmp_path):
+    from typer.testing import CliRunner
+
+    from recall.cli import app
+
+    bad = tmp_path / "q.jsonl"
+    bad.write_text(
+        '{"id":"q1","type":"single_fact","question":"x?",'
+        '"gold":[{"doc":"fx-1","contains":"phrase that is nowhere"}],"answer":"a"}\n'
+    )
+    out = tmp_path / "results.md"
+    res = CliRunner().invoke(app, _eval_args(out, bad))
+    assert res.exit_code == 1
+    assert "unreachable" in res.output and "phrase that is nowhere" in res.output
+    assert not out.exists()
+
+
+def test_eval_cli_blank_questions_exits_nonzero_without_output(test_db_env, tmp_path):
+    from typer.testing import CliRunner
+
+    from recall.cli import app
+
+    blank = tmp_path / "q.jsonl"
+    blank.write_text("\n  \n")
+    out = tmp_path / "results.md"
+    res = CliRunner().invoke(app, _eval_args(out, blank))
+    assert res.exit_code != 0
+    assert not out.exists()
+
+
+def test_run_eval_rejects_empty_questions():
+    with pytest.raises(ValueError, match="at least one question"):
+        run_eval(None, user_id=EVAL_USER, embedder=None, questions=[], modes=["hybrid"])
+
+
+def test_load_questions_rejects_blank_file(tmp_path):
+    p = tmp_path / "q.jsonl"
+    p.write_text("\n\n")
+    with pytest.raises(ValueError, match="no questions"):
+        load_questions(p)
+
+
+@pytest.mark.parametrize("gold", [{"doc": "", "contains": "x"}, {"doc": "d", "contains": ""}])
+def test_load_questions_rejects_empty_gold_fields(tmp_path, gold):
+    p = tmp_path / "q.jsonl"
+    q = {"id": "q", "type": "single_fact", "question": "?", "gold": [gold], "answer": "a"}
+    p.write_text(__import__("json").dumps(q) + "\n")
+    with pytest.raises(ValueError, match="line 1"):
+        load_questions(p)

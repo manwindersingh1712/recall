@@ -23,8 +23,10 @@ from typing import Any
 import anthropic
 import yaml
 
-from recall.evaluation.run import Gold, Question
+from recall.evaluation.run import Gold, Question, chunk_body
+from recall.ingest.chunk import chunk_document
 from recall.ingest.loader import discover, load_file
+from recall.ingest.normalize import normalize
 from recall.models import RawDocument
 
 MODEL = "claude-sonnet-5-5"
@@ -68,7 +70,18 @@ class _Corpus:
                 self.by_role[(d.source, role)].append(d)
             if d.metadata.get("person"):
                 self.by_person[(d.source, d.metadata["person"])].append(d)
-        self.lowered = {d.source_ref: d.body.lower() for d in self.docs}
+        # What the index actually holds: normalized text, then chunk bodies without the prefix.
+        norm = {d.source_ref: normalize(d.body) for d in self.docs}
+        self.lowered = {ref: t.lower() for ref, t in norm.items()}
+        self.chunk_bodies = {
+            d.source_ref: [
+                chunk_body(c.text, d.title).lower()
+                for c in chunk_document(
+                    norm[d.source_ref], source=d.source, title=d.title, company=d.company
+                )
+            ]
+            for d in self.docs
+        }
         self.reposted = {d.metadata["repost_of"] for d in self.docs if d.metadata.get("repost_of")}
 
     def post(self, role_id: str) -> RawDocument | None:
@@ -84,9 +97,14 @@ class _Corpus:
         return posts[0]
 
     def occurrences(self, phrase: str) -> int:
-        """Docs whose body contains phrase, by the eval's own rule (raw, case-insensitive)."""
+        """Docs whose normalized text contains phrase (raw, case-insensitive)."""
         needle = phrase.lower()
         return sum(1 for body in self.lowered.values() if needle in body)
+
+    def reachable(self, doc: RawDocument, phrase: str) -> bool:
+        """Does some indexed chunk body of doc contain phrase, by the eval's own rule?"""
+        needle = phrase.lower()
+        return any(needle in b for b in self.chunk_bodies.get(doc.source_ref, []))
 
     def doc(self, source: str, role_id: str, person: str | None = None) -> RawDocument | None:
         for d in self.by_role.get((source, role_id), []):
@@ -128,7 +146,8 @@ def _ask(client: Any, need: Need, rejected: str | None) -> str | None:
 
 def _phrase(client: Any, need: Need, corpus: _Corpus, attempts: int = 2) -> str | None:
     """A supporting phrase for need.doc, accepted only if the eval's raw matching
-    (`phrase.lower() in body.lower()`) finds it in that doc and in no other corpus doc."""
+    (`phrase.lower() in chunk_body.lower()`) finds it in an indexed chunk of that doc and in no
+    other corpus doc's normalized text."""
     rejected = None
     for _ in range(attempts):
         phrase = _ask(client, need, rejected)
@@ -140,7 +159,7 @@ def _phrase(client: Any, need: Need, corpus: _Corpus, attempts: int = 2) -> str 
             and not _MARKDOWN.search(phrase)
             and _norm(phrase) not in banned
             and need.must_include.lower() in phrase.lower()
-            and phrase.lower() in need.doc.body.lower()
+            and corpus.reachable(need.doc, phrase)
             and corpus.occurrences(phrase) == 1
         ):
             return phrase

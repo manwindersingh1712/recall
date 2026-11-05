@@ -110,3 +110,25 @@ def test_vector_scores_non_increasing(conn, seeded, user_a, embedder):
 def test_k_must_be_positive(conn, seeded, user_a, embedder, k):
     with pytest.raises(ValueError):
         search(conn, user_id=user_a, query="role", embedder=embedder, k=k)
+
+
+def test_hybrid_vector_arm_uses_hnsw_index(conn, seeded, user_a, embedder):
+    import numpy as np
+    import psycopg
+
+    from recall.retrieval import search as search_mod
+
+    emb = np.asarray(embedder.embed(["Java Spring microservices role"])[0], dtype=np.float32)
+    params = {"query": "role", "user": user_a, "k": 10, "cand": 50, "rrf_k": 60, "emb": emb}
+    plan = ""
+    with conn.transaction():
+        # The fixture is tiny, so the planner prefers cheap btree scans; take them away (the
+        # DROP is rolled back) so only the vector index can satisfy the ORDER BY.
+        conn.execute("SET LOCAL enable_seqscan = off")
+        conn.execute("SET LOCAL enable_bitmapscan = off")
+        conn.execute("DROP INDEX chunks_user")
+        conn.execute("DROP INDEX chunks_document")
+        rows = conn.execute("EXPLAIN " + search_mod._HYBRID_SQL, params).fetchall()
+        plan = "\n".join(r["QUERY PLAN"] for r in rows)
+        raise psycopg.Rollback
+    assert "Index Scan using chunks_vec" in plan, plan

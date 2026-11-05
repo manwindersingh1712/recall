@@ -25,6 +25,8 @@ from typing import Any
 import anthropic
 import yaml
 
+from recall.ingest.normalize import normalize
+
 MODEL = "claude-sonnet-5-5"
 MAX_TOKENS = 8000  # thinking tokens count toward this; bodies are only a few hundred words
 SHARES = (("job_post", 0.45), ("email", 0.30), ("interview", 0.15))  # note takes the remainder
@@ -248,7 +250,8 @@ def render(doc: DocSpec, client: Any) -> str:
                 f"{doc.source_ref}: no usable body (stop_reason={response.stop_reason})"
             )
         body = _clean_body("".join(b.text for b in response.content if b.type == "text"))
-        missing = [f for f in required if f.lower() not in body.lower()]
+        indexed = normalize(body).lower()  # eval matches what ingest keeps
+        missing = [f for f in required if f.lower() not in indexed]
         if not missing:
             return body
     raise ValueError(f"{doc.source_ref}: body is missing required facts {missing}")
