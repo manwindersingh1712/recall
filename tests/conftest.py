@@ -5,6 +5,7 @@ import pytest
 
 from recall.config import get_settings
 from recall.db import connect
+from recall.ingest.embed import HashEmbedder
 from recall.migrate import apply_migrations
 
 
@@ -46,3 +47,8 @@ def user_a() -> UUID:
 @pytest.fixture
 def user_b() -> UUID:
     return UUID("00000000-0000-0000-0000-0000000000b1")
+
+
+@pytest.fixture
+def embedder() -> HashEmbedder:
+    return HashEmbedder()
