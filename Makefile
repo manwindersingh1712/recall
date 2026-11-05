@@ -1,4 +1,4 @@
-.PHONY: up down test test-all lint migrate ingest search
+.PHONY: up down test test-all lint migrate ingest search api
 
 up:
 	docker compose up -d --wait
@@ -23,3 +23,6 @@ ingest:
 
 search:
 	uv run recall search "$(q)"
+
+api:
+	uv run uvicorn recall.api.app:create_app --factory --reload --port 8000
