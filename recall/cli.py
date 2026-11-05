@@ -10,6 +10,8 @@ from recall.ingest.embed import get_embedder
 from recall.ingest.loader import discover
 from recall.ingest.pipeline import ingest_paths
 from recall.migrate import apply_migrations
+from recall.models import Mode
+from recall.retrieval.search import search as run_search
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -54,3 +56,26 @@ def ingest(
         typer.echo(f"  {Path(f.path).name}: {f.error}")
     if report.failed:
         raise typer.Exit(1)
+
+
+@app.command()
+def search(
+    query: Annotated[str, typer.Argument(help="What to look for.")],
+    user: Annotated[
+        UUID | None, typer.Option("--user", help="User id (default: dev user).")
+    ] = None,
+    mode: Annotated[Mode, typer.Option("--mode", help="vector, keyword or hybrid.")] = "hybrid",
+    k: Annotated[int, typer.Option("-k", help="Number of results.")] = 10,
+    fake_embeddings: Annotated[
+        bool, typer.Option("--fake-embeddings", help="Use hash embeddings.")
+    ] = False,
+) -> None:
+    """Search memory."""
+    settings = get_settings()
+    user_id = user or settings.default_user_id
+    embedder = get_embedder(settings, fake=fake_embeddings)
+    with connect() as conn:
+        hits = run_search(conn, user_id=user_id, query=query, embedder=embedder, mode=mode, k=k)
+    for rank, h in enumerate(hits, 1):
+        snippet = " ".join(h.text.split())[:120]
+        typer.echo(f"{rank:>2}  {h.score:.4f}  {h.title or '-'}  {snippet}")

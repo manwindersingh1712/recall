@@ -1,4 +1,4 @@
-.PHONY: up down test test-all lint migrate ingest
+.PHONY: up down test test-all lint migrate ingest search
 
 up:
 	docker compose up -d --wait
@@ -20,3 +20,6 @@ migrate:
 
 ingest:
 	uv run recall ingest $(or $(path),tests/fixtures/docs)
+
+search:
+	uv run recall search "$(q)"

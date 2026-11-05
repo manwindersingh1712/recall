@@ -60,3 +60,30 @@ def test_db_env(db_url, monkeypatch):
     get_settings.cache_clear()
     yield db_url
     get_settings.cache_clear()
+
+
+_SEED_DOCS = [
+    ("a-one", "Postgres pgvector backend role at Littlebird"),
+    ("a-two", "Java Spring microservices role"),
+    ("a-three", "Kubernetes SRE on-call role"),
+    ("a-four", "Banana bread recipe note"),
+]
+
+
+@pytest.fixture
+def seeded(conn, user_a, user_b, embedder, tmp_path):
+    """Four docs for user_a and one for user_b, ingested with the hash embedder."""
+    from recall.ingest.pipeline import ingest_paths
+
+    for owner, docs in (
+        (user_a, _SEED_DOCS),
+        (user_b, [("b-one", "Postgres pgvector role at SecretCo")]),
+    ):
+        folder = tmp_path / str(owner)
+        folder.mkdir()
+        paths = []
+        for stem, body in docs:
+            p = folder / f"{stem}.md"
+            p.write_text(body)
+            paths.append(p)
+        ingest_paths(conn, paths, user_id=owner, embedder=embedder, root=folder)

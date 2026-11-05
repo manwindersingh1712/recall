@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -42,3 +43,17 @@ class IngestReport(BaseModel):
     empty: int = 0
     chunks: int = 0
     failed: list[FailedFile] = []
+
+
+Mode = Literal["vector", "keyword", "hybrid"]
+
+
+class SearchHit(BaseModel):
+    """One retrieved chunk with its document context."""
+
+    chunk_id: UUID
+    document_id: UUID
+    title: str | None
+    source_ref: str | None
+    text: str
+    score: float
