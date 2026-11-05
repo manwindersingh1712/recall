@@ -1,13 +1,16 @@
+import math
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
+import recall.evaluation.run as run_mod
 from recall.evaluation.run import (
     EVAL_USER_ID as EVAL_USER,
 )
 from recall.evaluation.run import (
     Gold,
+    Question,
     label_hits,
     load_questions,
     run_eval,
@@ -37,7 +40,7 @@ def test_label_hits_matches_once():
         hit(source_ref="fx-1", text="pgvector again"),
         hit(source_ref="fx-2", text="pgvector"),
     ]
-    assert label_hits(hits, g) == ["fx-1::pgvector", "", ""]
+    assert label_hits(hits, g) == [{"fx-1::pgvector"}, {"fx-1::pgvector"}, set()]
 
 
 def test_load_questions_bad_line(tmp_path):
@@ -48,7 +51,7 @@ def test_load_questions_bad_line(tmp_path):
 
 
 def test_run_eval_end_to_end(conn, embedder, tmp_path):
-    root = Path("tests/fixtures/eval")
+    root = Path(__file__).parent / "fixtures" / "eval"
     ingest_paths(
         conn, discover(root / "corpus"), user_id=EVAL_USER, embedder=embedder, root=root / "corpus"
     )
@@ -72,3 +75,56 @@ def test_run_eval_end_to_end(conn, embedder, tmp_path):
         and "| Hybrid (RRF) |" in text
         and "| Hybrid + re-rank |  |" in text
     )
+
+
+def test_label_hits_multi_key_and_prefix_ignored():
+    g = [Gold(doc="fx-1", contains="alpha"), Gold(doc="fx-1", contains="beta")]
+    both = hit(title="T", text="T\n\nAlpha and beta")
+    prefix_only = hit(title="alpha co", text="alpha co\n\nunrelated body")
+    assert label_hits([both, prefix_only], g) == [{"fx-1::alpha", "fx-1::beta"}, set()]
+
+
+def test_run_eval_averages(monkeypatch):
+    qs = [
+        Question(
+            id="a",
+            type="single_fact",
+            question="qa",
+            gold=[Gold(doc="d1", contains="x")],
+            answer="",
+        ),
+        Question(
+            id="b",
+            type="multi_hop",
+            question="qb",
+            gold=[Gold(doc="d1", contains="x"), Gold(doc="d2", contains="y")],
+            answer="",
+        ),
+    ]
+    miss = hit(source_ref="d9", text="nothing")
+    fixed = {
+        "qa": [miss, hit(source_ref="d1", text="x here")],
+        "qb": [hit(source_ref="d1", text="x here"), hit(source_ref="d2", text="y here")],
+    }
+    monkeypatch.setattr(run_mod, "search", lambda conn, **kw: fixed[kw["query"]])
+    (r,) = run_eval(None, user_id=EVAL_USER, embedder=None, questions=qs, modes=["hybrid"])
+    assert r.recall_at_10 == 1.0
+    assert r.mrr == pytest.approx((0.5 + 1.0) / 2)
+    n_a = 1 / math.log2(3)
+    n_b = 1.0
+    assert r.ndcg_at_10 == pytest.approx((n_a + n_b) / 2)
+    assert r.by_type["single_fact"] == {"recall_at_10": 1.0, "mrr": 0.5, "n": 1.0}
+    assert r.by_type["multi_hop"] == {"recall_at_10": 1.0, "mrr": 1.0, "n": 1.0}
+
+
+def test_run_eval_two_gold_in_one_chunk(monkeypatch):
+    q = Question(
+        id="c",
+        type="multi_hop",
+        question="qc",
+        gold=[Gold(doc="d1", contains="x"), Gold(doc="d1", contains="y")],
+        answer="",
+    )
+    monkeypatch.setattr(run_mod, "search", lambda conn, **kw: [hit(source_ref="d1", text="x y")])
+    (r,) = run_eval(None, user_id=EVAL_USER, embedder=None, questions=[q], modes=["vector"])
+    assert (r.recall_at_10, r.mrr, r.ndcg_at_10) == (1.0, 1.0, 1.0)

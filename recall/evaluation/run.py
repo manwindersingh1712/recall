@@ -67,20 +67,21 @@ def _key(g: Gold) -> str:
     return f"{g.doc}::{g.contains}"
 
 
-def label_hits(hits: list[SearchHit], gold: list[Gold]) -> list[str]:
-    """Label each hit with the first unmatched gold item it satisfies, else ''."""
-    matched: set[str] = set()
+def _body(h: SearchHit) -> str:
+    """Chunk text without the contextual "title — company" prefix paragraph."""
+    if h.title and h.text.startswith(h.title) and "\n\n" in h.text:
+        return h.text.split("\n\n", 1)[1]
+    return h.text
+
+
+def label_hits(hits: list[SearchHit], gold: list[Gold]) -> list[set[str]]:
+    """For each hit, the set of gold keys it satisfies (matched against the chunk body)."""
     labels = []
     for h in hits:
-        label = ""
-        for g in gold:
-            if _key(g) in matched:
-                continue
-            if h.source_ref == g.doc and g.contains.lower() in h.text.lower():
-                label = _key(g)
-                matched.add(label)
-                break
-        labels.append(label)
+        body = _body(h).lower()
+        labels.append(
+            {_key(g) for g in gold if h.source_ref == g.doc and g.contains.lower() in body}
+        )
     return labels
 
 
@@ -101,6 +102,15 @@ def run_eval(
     for mode in modes:
         scores: dict[str, list[tuple[float, float, float]]] = defaultdict(list)
         latencies: list[float] = []
+        if questions:  # untimed warm-up so connection/plan caches don't skew p95
+            search(
+                conn,
+                user_id=user_id,
+                query=questions[0].question,
+                embedder=embedder,
+                mode=mode,
+                k=k,
+            )
         for q in questions:
             t0 = time.perf_counter()
             hits = search(

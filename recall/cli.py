@@ -52,6 +52,7 @@ def ingest(
     paths = discover(path) if path.is_dir() else [path]
     embedder = get_embedder(settings, fake=fake_embeddings)
     with connect() as conn:
+        conn.execute("DELETE FROM documents WHERE user_id = %s", (EVAL_USER_ID,))
         report = ingest_paths(conn, paths, user_id=user_id, embedder=embedder, root=root)
     typer.echo(f"{'inserted':<12}{report.inserted}")
     typer.echo(f"{'duplicates':<12}{report.duplicates}")
@@ -103,15 +104,22 @@ def eval_cmd(
     """Ingest the eval corpus, score every retrieval mode, and write the results table."""
     settings = get_settings()
     embedder = get_embedder(settings, fake=fake_embeddings)
+    if fake_embeddings and out == Path("eval/results.md"):
+        typer.echo("--fake-embeddings requires an explicit --out (not eval/results.md)", err=True)
+        raise typer.Exit(2)
     paths = discover(corpus)
     qs = load_questions(questions)
     model = "hash (fake)" if fake_embeddings else settings.embed_model
     with connect() as conn:
+        conn.execute("DELETE FROM documents WHERE user_id = %s", (EVAL_USER_ID,))
         report = ingest_paths(conn, paths, user_id=EVAL_USER_ID, embedder=embedder, root=corpus)
         if report.failed:
             for f in report.failed:
                 typer.echo(f"  {Path(f.path).name}: {f.error}", err=True)
             raise typer.Exit(1)
+        n_docs = conn.execute(
+            "SELECT count(*) FROM documents WHERE user_id = %s", (EVAL_USER_ID,)
+        ).fetchone()[0]
         results = run_eval(
             conn,
             user_id=EVAL_USER_ID,
@@ -119,5 +127,5 @@ def eval_cmd(
             questions=qs,
             modes=["vector", "keyword", "hybrid"],
         )
-    write_results_md(results, out, corpus_docs=len(paths), n_questions=len(qs), embed_model=model)
+    write_results_md(results, out, corpus_docs=n_docs, n_questions=len(qs), embed_model=model)
     typer.echo(out.read_text())

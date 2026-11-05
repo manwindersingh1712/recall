@@ -1,82 +1,45 @@
 import math
 
 
-def recall_at_k(retrieved: list[str], relevant: set[str], k: int = 10) -> float:
-    """
-    Calculate recall@k: |set(retrieved[:k]) ∩ relevant| / |relevant|
+def recall_at_k(retrieved: list[set[str]], relevant: set[str], k: int = 10) -> float:
+    """recall@k: |union of keys in the top k hits ∩ relevant| / |relevant|.
 
-    Args:
-        retrieved: List of retrieved items
-        relevant: Set of relevant items
-        k: Number of top items to consider
-
-    Returns:
-        Recall at k
-
-    Raises:
-        ValueError: If relevant set is empty
+    Each retrieved entry is the set of gold keys that hit satisfies (empty = none).
+    Raises ValueError if relevant is empty.
     """
     if not relevant:
         raise ValueError("relevant set cannot be empty")
+    found: set[str] = set()
+    for keys in retrieved[:k]:
+        found |= keys
+    return len(found & relevant) / len(relevant)
 
-    # Filter out empty strings from retrieved list
-    filtered_retrieved = [item for item in retrieved[:k] if item != ""]
-    hits = len(set(filtered_retrieved) & relevant)
-    return hits / len(relevant)
 
-
-def reciprocal_rank(retrieved: list[str], relevant: set[str]) -> float:
-    """
-    Calculate reciprocal rank (MRR): 1/rank of first relevant item, else 0.0
-
-    Args:
-        retrieved: List of retrieved items
-        relevant: Set of relevant items
-
-    Returns:
-        Reciprocal rank
-    """
-    for i, item in enumerate(retrieved):
-        # Skip empty strings
-        if item != "" and item in relevant:
+def reciprocal_rank(retrieved: list[set[str]], relevant: set[str]) -> float:
+    """1/rank of the first hit satisfying any relevant key, else 0.0."""
+    for i, keys in enumerate(retrieved):
+        if keys & relevant:
             return 1.0 / (i + 1)
     return 0.0
 
 
-def ndcg_at_k(retrieved: list[str], relevant: set[str], k: int = 10) -> float:
-    """
-    Calculate normalized Discounted Cumulative Gain at k.
-    Uses binary gain (1 for relevant, 0 for irrelevant).
-    Discount factor: 1/log2(i+2) for 0-based position i.
-    A key counts only at its first occurrence.
+def ndcg_at_k(retrieved: list[set[str]], relevant: set[str], k: int = 10) -> float:
+    """nDCG@k where a hit's gain is the number of relevant keys it newly satisfies.
 
-    Args:
-        retrieved: List of retrieved items
-        relevant: Set of relevant items
-        k: Number of top items to consider
-
-    Returns:
-        nDCG@k
+    DCG = sum(gain_i / log2(i + 2)); IDCG assumes min(|relevant|, k) unit gains at the
+    top positions. That is an approximation (a single hit carrying several keys can beat
+    it), so the result is capped at 1.0.
     """
-    # Calculate DCG
     dcg = 0.0
-    seen = set()
-    for i, item in enumerate(retrieved[:k]):
-        if item != "" and item not in seen:
-            if item in relevant:
-                dcg += 1.0 / math.log2(i + 2)
-            seen.add(item)
-
-    # Calculate ideal DCG (IDCG)
-    # Ideal ranking: all relevant items first
-    ideal_hits = min(len(relevant), k)
-    idcg = sum(1.0 / math.log2(i + 2) for i in range(ideal_hits))
-
-    # Handle edge case where IDCG is 0
+    seen: set[str] = set()
+    for i, keys in enumerate(retrieved[:k]):
+        new = (keys & relevant) - seen
+        seen |= new
+        dcg += len(new) / math.log2(i + 2)
+    idcg = sum(1.0 / math.log2(i + 2) for i in range(min(len(relevant), k)))
     if idcg == 0:
         return 0.0
-
-    return dcg / idcg
+    return min(1.0, dcg / idcg)
 
 
 def percentile(values: list[float], p: float) -> float:
