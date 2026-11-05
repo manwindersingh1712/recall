@@ -50,14 +50,14 @@ Vary your phrasing and structure from document to document."""
 
 GUIDE = {
     "job_post": "A public job posting for the role: about the company, the role, responsibilities, "
-    "requirements (cover every listed skill), compensation, and the location / remote policy. "
-    "300-450 words.",
+    "requirements (cover every listed skill), and the location. Quote the salary text and the "
+    "remote_policy sentence from the facts verbatim. 300-450 words.",
     "email": "An email from the recruiter named in the facts to the candidate, pitching this role "
-    "and proposing a call. Include the salary text and one sentence on the remote policy, and "
-    "sign it with the recruiter's name. 120-220 words.",
+    "and proposing a call. Quote the salary text and the remote_policy sentence from the facts verbatim, and "
+    "sign it with the recruiter's full name. 120-220 words.",
     "interview": "The candidate's own first-person notes written right after the interview round "
-    "named in the facts: questions asked, what went well and badly, the interviewer's name if "
-    "given, and impressions. Reflect the application status naturally. 150-300 words.",
+    "named in the facts: questions asked, what went well and badly, impressions, and the "
+    "interviewer's full name exactly as given in the facts. Reflect the application status naturally. 150-300 words.",
     "note": "A short, informal personal note by the candidate about this company or role "
     "(impressions, pros and cons, remote policy, next step). Reflect the application status "
     "naturally if a role is given. 80-180 words.",
@@ -227,17 +227,42 @@ def render(doc: DocSpec, client: Any) -> str:
         f"<facts>\n{facts}\n</facts>\n\n"
         "Write the document body now."
     )
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        output_config={"effort": "low"},
-        system=SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    if response.stop_reason in ("refusal", "max_tokens"):
-        raise RuntimeError(f"{doc.source_ref}: no usable body (stop_reason={response.stop_reason})")
-    text = "".join(b.text for b in response.content if b.type == "text")
-    return _clean_body(text)
+    required = _required(doc)
+    missing: list[str] = []
+    for _attempt in range(2):  # one retry if the body leaves out facts the eval depends on
+        retry = (
+            f"\nYour previous attempt left out these required facts; include each verbatim: "
+            f"{json.dumps(missing)}.\n"
+            if missing
+            else ""
+        )
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            output_config={"effort": "low"},
+            system=SYSTEM,
+            messages=[{"role": "user", "content": prompt + retry}],
+        )
+        if response.stop_reason in ("refusal", "max_tokens"):
+            raise RuntimeError(
+                f"{doc.source_ref}: no usable body (stop_reason={response.stop_reason})"
+            )
+        body = _clean_body("".join(b.text for b in response.content if b.type == "text"))
+        missing = [f for f in required if f.lower() not in body.lower()]
+        if not missing:
+            return body
+    raise ValueError(f"{doc.source_ref}: body is missing required facts {missing}")
+
+
+def _required(doc: DocSpec) -> list[str]:
+    """Fact strings the body must contain verbatim, since eval questions are built on them."""
+    keys = {
+        "job_post": ("salary", "remote_policy"),
+        "email": ("salary", "remote_policy", "recruiter"),
+        "interview": ("interviewer",),
+        "note": (),
+    }[doc.source]
+    return [doc.facts[k] for k in keys if doc.facts.get(k)]
 
 
 def write_doc(doc: DocSpec, client: Any, out_dir: Path) -> Path:

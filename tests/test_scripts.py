@@ -7,6 +7,8 @@ from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 
+import anthropic
+import httpx2
 import pytest
 import yaml
 
@@ -44,15 +46,21 @@ class FakeClient:
         self.calls.append(kwargs)
         if self.body is not None:
             return _message(self.body, self.stop_reason)
-        facts = json.loads(_tagged(kwargs["messages"][0]["content"], "facts"))
-        lines = [f"Notes about {facts['company']}."]
+        prompt = kwargs["messages"][0]["content"]
+        facts = json.loads(_tagged(prompt, "facts"))
+        doc_type = _tagged(prompt, "document_type").replace("_", " ")
+        # a per-call reference makes each doc's lines unique, like real varied prose
+        ref = f"Ref {len(self.calls)} {doc_type}: "
+        lines = [f"{ref}Notes about {facts['company']}."]
         if facts.get("role_title"):
-            lines.append(f"We are hiring a {facts['role_title']} at {facts['company']}.")
-            lines.append(f"Compensation is {facts['salary']}.")
-        lines.append(facts["remote_policy"])
+            lines.append(f"{ref}We are hiring a {facts['role_title']} at {facts['company']}.")
+            lines.append(f"{ref}Compensation is {facts['salary']}.")
+        if facts.get("skills"):
+            lines.append(f"{ref}Requirements include {', '.join(facts['skills'])}.")
+        lines.append(f"{ref}{facts['remote_policy']}")
         for key, label in (("recruiter", "Recruiter"), ("interviewer", "Interviewer")):
             if facts.get(key):
-                lines.append(f"{label} for this process is {facts[key]}.")
+                lines.append(f"{ref}{label} for this process is {facts[key]}.")
         return _message("\n\n".join(lines), self.stop_reason)
 
 
@@ -72,6 +80,10 @@ class FakeQuestionClient:
             return _message(json.dumps({"contains": f"{needle} but not in the document"}))
         line = next((ln for ln in body.splitlines() if needle.lower() in ln.lower()), "")
         return _message(json.dumps({"contains": line.strip()}))
+
+
+def _spec(source: str) -> DocSpec:
+    return next(j for j in build_jobs(WORLD, 60) if j.source == source)
 
 
 def _build_fixture_corpus() -> Path:
@@ -130,7 +142,7 @@ def test_render_writes_loadable_front_matter(tmp_path):
 
 
 def test_write_doc_layout_and_resumable(tmp_path):
-    spec = build_jobs(WORLD, 20)[0]
+    spec = _spec("note")
     client = FakeClient("Some prose here.")
     path = write_doc(spec, client, tmp_path)
     assert path == tmp_path / spec.source / f"{spec.source_ref}.md"
@@ -147,8 +159,8 @@ def test_write_doc_layout_and_resumable(tmp_path):
 
 
 def test_prompt_states_facts_as_data_and_body_only():
-    spec = build_jobs(WORLD, 20)[0]
-    client = FakeClient("Body.")
+    spec = _spec("job_post")
+    client = FakeClient()
     render(spec, client)
     call = client.calls[0]
     assert call["model"] == "claude-sonnet-5-5"
@@ -160,14 +172,14 @@ def test_prompt_states_facts_as_data_and_body_only():
 
 
 def test_render_strips_model_front_matter_and_fences():
-    spec = build_jobs(WORLD, 20)[0]
+    spec = _spec("note")
     evil = "---\nsource: note\ncompany: Evil\n---\n\n## Real body\nHello."
     assert render(spec, FakeClient(evil)) == "## Real body\nHello."
     assert render(spec, FakeClient("```markdown\nHello there.\n```")) == "Hello there."
 
 
 def test_generated_text_cannot_override_front_matter(tmp_path):
-    spec = build_jobs(WORLD, 20)[0]
+    spec = _spec("note")
     path = write_doc(
         spec, FakeClient("---\ncompany: Evil\nsource: email\n---\nBody text."), tmp_path
     )
@@ -210,7 +222,7 @@ def test_main_without_api_key_fails_clearly(tmp_path, monkeypatch):
 
 
 def test_main_limit_writes_only_new_files(tmp_path, monkeypatch):
-    client = FakeClient("Prose.")
+    client = FakeClient()
     monkeypatch.setattr(generate_corpus, "_make_client", lambda: client)
     generate_corpus.main(["--target", "30", "--limit", "4", "--out", str(tmp_path)])
     assert len(list(tmp_path.rglob("*.md"))) == 4
@@ -248,6 +260,7 @@ def test_drafted_gold_phrases_are_distinctive_body_phrases(tmp_path):
         for g in q.gold:
             doc = bodies[g.doc]
             assert g.contains.lower() in doc.body.lower()
+            assert sum(g.contains.lower() in d.body.lower() for d in bodies.values()) == 1
             assert len(g.contains) >= 8
             assert g.contains.lower() not in {doc.title.lower(), (doc.company or "").lower()}
 
@@ -268,3 +281,168 @@ def test_draft_main_requires_api_key(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as exc:
         draft_questions.main(["--out", str(tmp_path / "q.jsonl")])
     assert "ANTHROPIC_API_KEY" in str(exc.value)
+
+
+# --- fix round 1 -------------------------------------------------------------------------
+
+
+class ScriptedClient:
+    """Returns queued bodies (or raises queued exceptions), one per call."""
+
+    def __init__(self, *replies):
+        self.replies = list(replies)
+        self.calls: list[dict] = []
+        self.messages = self
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return _message(reply)
+
+
+def _write_corpus_doc(root: Path, source: str, ref: str, body: str, **meta) -> None:
+    front = yaml.safe_dump(
+        {"source": source, "title": f"Title {ref}", "company": "Acme", "source_ref": ref, **meta}
+    )
+    path = root / source / f"{ref}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\n{front}---\n\n{body}\n", encoding="utf-8")
+
+
+def _need(corpus: draft_questions._Corpus, ref: str, must: str) -> draft_questions.Need:
+    return draft_questions.Need(next(d for d in corpus.docs if d.source_ref == ref), must)
+
+
+def _phrase_reply(phrase: str) -> str:
+    return json.dumps({"contains": phrase})
+
+
+def test_phrase_in_two_sibling_docs_is_rejected(tmp_path):
+    shared = "Compensation for this role is 30-40 LPA."
+    _write_corpus_doc(tmp_path, "job_post", "jp-a", f"Intro A.\n\n{shared}")
+    _write_corpus_doc(tmp_path, "job_post", "jp-b", f"Intro B.\n\n{shared}")
+    corpus = draft_questions._Corpus(tmp_path)
+    need = _need(corpus, "jp-a", "30-40 LPA")
+    assert (
+        draft_questions._phrase(ScriptedClient(*[_phrase_reply(shared)] * 2), need, corpus) is None
+    )
+
+
+def test_rejected_phrase_gets_one_more_attempt(tmp_path):
+    shared = "Compensation for this role is 30-40 LPA."
+    _write_corpus_doc(tmp_path, "job_post", "jp-a", f"Intro A, remote friendly.\n\n{shared}")
+    _write_corpus_doc(tmp_path, "job_post", "jp-b", f"Intro B.\n\n{shared}")
+    corpus = draft_questions._Corpus(tmp_path)
+    client = ScriptedClient(_phrase_reply(shared), _phrase_reply("Intro A, remote friendly."))
+    need = _need(corpus, "jp-a", "friendly")
+    assert draft_questions._phrase(client, need, corpus) == "Intro A, remote friendly."
+    assert "<rejected>" in client.calls[1]["messages"][0]["content"]
+
+
+def test_phrase_matching_only_after_whitespace_collapse_is_rejected(tmp_path):
+    _write_corpus_doc(tmp_path, "job_post", "jp-a", "Pay is 30-40\nLPA for this role.")
+    _write_corpus_doc(tmp_path, "job_post", "jp-b", "Pay is  50-60  LPA, double spaced.")
+    corpus = draft_questions._Corpus(tmp_path)
+    for ref, phrase, must in (
+        ("jp-a", "Pay is 30-40 LPA for this role.", "30-40"),
+        ("jp-b", "Pay is 50-60 LPA, double spaced.", "50-60"),
+    ):
+        client = ScriptedClient(*[_phrase_reply(phrase)] * 2)
+        assert draft_questions._phrase(client, _need(corpus, ref, must), corpus) is None
+
+
+def test_phrase_unique_and_raw_matching_accepted(tmp_path):
+    _write_corpus_doc(tmp_path, "job_post", "jp-a", "Pay is 30-40 LPA for this role.")
+    _write_corpus_doc(tmp_path, "job_post", "jp-b", "Something else entirely.")
+    corpus = draft_questions._Corpus(tmp_path)
+    reply = _phrase_reply("pay is 30-40 LPA for this role.")  # case differs: eval is case-blind
+    got = draft_questions._phrase(ScriptedClient(reply), _need(corpus, "jp-a", "30-40"), corpus)
+    assert got == "pay is 30-40 LPA for this role."
+
+
+def test_phrase_swallows_api_errors(tmp_path):
+    _write_corpus_doc(tmp_path, "job_post", "jp-a", "Pay is 30-40 LPA for this role.")
+    corpus = draft_questions._Corpus(tmp_path)
+    boom = anthropic.APIConnectionError(request=httpx2.Request("POST", "https://example.invalid"))
+    client = ScriptedClient(boom)
+    assert draft_questions._phrase(client, _need(corpus, "jp-a", "30-40"), corpus) is None
+
+
+def _mini_world() -> dict:
+    roles = [
+        {
+            "id": f"r{i}",
+            "company": "Acme",
+            "title": f"Dev {i}",
+            "skills": ["rust"],
+            "status": "saved",
+            "salary": f"{i}0-{i}5 LPA",
+        }
+        for i in (1, 2, 3)
+    ]
+    company = {
+        "name": "Acme",
+        "location": "Pune",
+        "remote_from_india": True,
+        "remote_policy": "Acme is remote friendly for India.",
+        "industry": "x",
+    }
+    return {"companies": [company], "roles": roles, "people": [], "skills": ["rust"]}
+
+
+def test_filter_semantic_skips_question_when_a_hit_role_has_no_post(tmp_path):
+    world = _mini_world()
+    for i in (1, 2):  # r3 has no job post in the corpus
+        _write_corpus_doc(tmp_path, "job_post", f"jp-r{i}-0", f"Rust role {i}.", role_id=f"r{i}")
+    corpus = draft_questions._Corpus(tmp_path)
+    assert draft_questions._filter_semantic(world, corpus) == []
+    _write_corpus_doc(tmp_path, "job_post", "jp-r3-0", "Rust role 3.", role_id="r3")
+    corpus = draft_questions._Corpus(tmp_path)
+    questions = [q for q, _, _ in draft_questions._filter_semantic(world, corpus)]
+    assert "Which 'saved' roles require rust?" in questions
+
+
+def test_filter_semantic_skips_question_when_a_hit_role_has_a_repost(tmp_path):
+    world = _mini_world()
+    for i in (1, 2, 3):
+        _write_corpus_doc(tmp_path, "job_post", f"jp-r{i}-0", f"Rust role {i}.", role_id=f"r{i}")
+    _write_corpus_doc(
+        tmp_path,
+        "job_post",
+        "jp-r3-0-repost",
+        "Rust role 3 again.",
+        role_id="r3",
+        repost_of="jp-r3-0",
+    )
+    corpus = draft_questions._Corpus(tmp_path)
+    assert draft_questions._filter_semantic(world, corpus) == []
+
+
+def test_render_retries_once_when_required_fact_missing():
+    spec = _spec("job_post")
+    good = f"Pay: {spec.facts['salary']}. {spec.facts['remote_policy']}"
+    client = ScriptedClient(spec.facts["remote_policy"], good)
+    assert render(spec, client) == good
+    assert spec.facts["salary"] in client.calls[1]["messages"][0]["content"]
+    assert len(client.calls) == 2
+
+
+def test_render_raises_and_writes_nothing_when_fact_still_missing(tmp_path):
+    spec = _spec("job_post")
+    no_salary = spec.facts["remote_policy"]
+    client = ScriptedClient(no_salary, no_salary)
+    with pytest.raises(ValueError, match="missing required facts"):
+        write_doc(spec, client, tmp_path)
+    assert not list(tmp_path.rglob("*.md"))
+    assert len(client.calls) == 2
+
+
+def test_render_requires_person_names_case_insensitively():
+    spec = _spec("email")
+    facts = spec.facts
+    body = f"{facts['salary']} {facts['remote_policy']} sincerely {facts['recruiter'].upper()}"
+    assert render(spec, ScriptedClient(body)) == body
+    with pytest.raises(ValueError, match="missing required facts"):
+        render(spec, ScriptedClient("no facts here", "still none"))
