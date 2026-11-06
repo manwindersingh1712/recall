@@ -1,0 +1,9 @@
+Interview prep notes, week of 9 November
+
+Things I keep forgetting about hybrid retrieval. Reciprocal rank fusion adds 1 / (k + rank) across each ranked list, and k = 60 is the usual default because it dampens the influence of top ranks without ignoring them.
+
+For the system design round, structure the answer in this order: requirements and scale, data model, ingestion path, query path, ranking, then failure modes. Spend the first five minutes asking clarifying questions about corpus size and latency targets.
+
+Salary expectations to quote if asked: stay flexible, anchor on the 55 to 80 lakh range for remote India roles. Ask about equity refresh cycles before accepting anything.
+
+Follow-ups to send: thank-you note to Priya after the Thursday round, and a reminder to update the tracker for Littlebird and Stripe.
