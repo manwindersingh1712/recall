@@ -10,6 +10,11 @@ from recall.models import Mode, SearchHit
 
 _HIT_COLUMNS = "c.id AS chunk_id, c.document_id, d.title, d.source_ref, c.text"
 
+# websearch_to_tsquery ANDs every term, so a natural-language question rarely matches a
+# document containing all of them. OR the terms instead and let ts_rank_cd rank by overlap.
+# Known limit: a "-term" exclusion becomes "| !term" rather than a hard filter.
+_TSQUERY = "replace(websearch_to_tsquery('english', %(query)s)::text, ' & ', ' | ')::tsquery"
+
 _VECTOR_SQL = f"""
 SELECT * FROM (
   SELECT {_HIT_COLUMNS}, 1 - (c.embedding <=> %(emb)s) AS score,
@@ -26,7 +31,7 @@ _KEYWORD_SQL = f"""
 SELECT {_HIT_COLUMNS}, ts_rank_cd(c.tsv, q.query) AS score
 FROM chunks c
 JOIN documents d ON d.id = c.document_id,
-     websearch_to_tsquery('english', %(query)s) AS q(query)
+     (SELECT {_TSQUERY} AS query) q
 WHERE c.user_id = %(user)s AND c.superseded_by IS NULL AND c.tsv @@ q.query
 ORDER BY score DESC, c.id
 LIMIT %(k)s
@@ -43,10 +48,10 @@ WITH vec AS (
 ),
 kw AS (
   SELECT id, row_number() OVER (ORDER BY score DESC, id) AS r
-  FROM (SELECT id, ts_rank_cd(tsv, websearch_to_tsquery('english', %(query)s)) AS score
+  FROM (SELECT id, ts_rank_cd(tsv, {_TSQUERY}) AS score
         FROM chunks
         WHERE user_id = %(user)s AND superseded_by IS NULL
-          AND tsv @@ websearch_to_tsquery('english', %(query)s)
+          AND tsv @@ {_TSQUERY}
         ORDER BY score DESC, id
         LIMIT %(cand)s) t
 ),
@@ -67,10 +72,10 @@ LIMIT %(k)s
 _KEYWORD_RRF_SQL = f"""
 WITH kw AS (
   SELECT id, row_number() OVER (ORDER BY score DESC, id) AS r
-  FROM (SELECT id, ts_rank_cd(tsv, websearch_to_tsquery('english', %(query)s)) AS score
+  FROM (SELECT id, ts_rank_cd(tsv, {_TSQUERY}) AS score
         FROM chunks
         WHERE user_id = %(user)s AND superseded_by IS NULL
-          AND tsv @@ websearch_to_tsquery('english', %(query)s)
+          AND tsv @@ {_TSQUERY}
         ORDER BY score DESC, id
         LIMIT %(cand)s) t
 )
@@ -107,7 +112,7 @@ def vector_search(
 
 
 def keyword_search(conn: Connection, *, user_id: UUID, query: str, k: int = 50) -> list[SearchHit]:
-    """Top-k chunks by ts_rank_cd over websearch_to_tsquery."""
+    """Top-k chunks by ts_rank_cd over the OR-ed websearch query (any term matches)."""
     if not query.strip():
         return []
     return _run(conn, _KEYWORD_SQL, {"query": query, "user": user_id, "k": k})

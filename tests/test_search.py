@@ -38,15 +38,15 @@ def test_hybrid_top_in_both_lists_scores_two_over_61(conn, seeded, user_a, embed
 
 
 def test_hybrid_falls_back_to_vector(conn, seeded, user_a, embedder):
-    q = "banana bread java"  # websearch_to_tsquery ANDs terms: no doc has all three, so the keyword arm is empty
+    q = "zebra quartz xylophone"  # no shared term: keyword arm is empty. k=4 covers all chunks, since a LIMIT would pick arbitrarily among tied distances
     assert search(conn, user_id=user_a, query=q, embedder=embedder, mode="keyword") == []
     h = [
         x.chunk_id
-        for x in search(conn, user_id=user_a, query=q, embedder=embedder, mode="hybrid", k=2)
+        for x in search(conn, user_id=user_a, query=q, embedder=embedder, mode="hybrid", k=4)
     ]
     v = [
         x.chunk_id
-        for x in search(conn, user_id=user_a, query=q, embedder=embedder, mode="vector", k=2)
+        for x in search(conn, user_id=user_a, query=q, embedder=embedder, mode="vector", k=4)
     ]
     assert h == v
 
@@ -132,3 +132,17 @@ def test_hybrid_vector_arm_uses_hnsw_index(conn, seeded, user_a, embedder):
         plan = "\n".join(r["QUERY PLAN"] for r in rows)
         raise psycopg.Rollback
     assert "Index Scan using chunks_vec" in plan, plan
+
+
+def test_keyword_matches_any_term(conn, seeded, user_a, embedder):
+    # A natural-language question contains words no single document has; any-term matching still finds them.
+    hits = search(
+        conn,
+        user_id=user_a,
+        query="which pgvector role is listed with banana",
+        embedder=embedder,
+        mode="keyword",
+        k=10,
+    )
+    texts = " ".join(h.text for h in hits)
+    assert "pgvector" in texts and "Banana" in texts
